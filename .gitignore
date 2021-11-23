@@ -1,6 +1,6 @@
 # Visual Studio 2015 user specific files
 CMP400_GAN_UE4/.vs/
-CMP400_GAN/*
+
 # Compiled Object files
 *.slo
 *.lo
