@@ -7,7 +7,7 @@ from tensorflow.python.ops.distributions.kullback_leibler import cross_entropy
 import time
 import matplotlib.pyplot as plt
 
-DISABLE_GPU_USAGE = False#True#
+DISABLE_GPU_USAGE = True#False#
 
 hgt_filenames = []
 heightmap_directory = 'Heightmaps/L32/'
@@ -57,8 +57,8 @@ def OpenAndReadHeightmap(filename):
     # convert to rank 2 (2D array)
     rank_2_tensor = tf.reshape(rank_1_tensor, [new_row_length, new_column_length, 1])
 
-    plt.imshow(rank_2_tensor[:, :], cmap="binary")
-    plt.show()
+    #plt.imshow(rank_2_tensor[:, :], cmap="viridis")
+    #plt.show()
 
     # slice into a hundred 120 by 120 sub-images
     sub_image_res = 120
@@ -83,9 +83,6 @@ def OpenAndReadHeightmap(filename):
     print("...Finished Loading.")
     #rank_3_tensor =tf.reshape(rank_3_tensor, [10, None,120,120,1])
     return rank_3_tensor
-
-
-
 
 
 '''
@@ -113,7 +110,7 @@ def make_generator_model():
     model.add(layers.LeakyReLU())
 
     model.add(layers.Conv2DTranspose(1, (5, 5), strides=(2, 2), padding='same', use_bias=False, activation='tanh'))
-    assert model.output_shape == (None, 120, 120, 1)
+    assert model.output_shape == (None, 120, 120, 1)###
 
     return model
 
@@ -211,8 +208,8 @@ manager = tf.train.CheckpointManager(checkpoint, checkpoint_prefix, max_to_keep=
 
 # Define the training loop
 BUFFER_SIZE = 60000
-BATCH_SIZE = 4#100
-EPOCHS = 300
+BATCH_SIZE = 3
+EPOCHS = 200
 noise_dim = 100
 num_examples_to_generate = 16
 
@@ -259,6 +256,7 @@ def train(dataset, epochs):
     else:
         print("[Checkpoint Manager]\t Initializing from scratch.")
 
+    overall_start_time = time.time()
     for epoch in range(epochs):
         start = time.time()
 
@@ -280,16 +278,18 @@ def train(dataset, epochs):
             #                         seed)
 
         print ('Epoch  {}  took {} sec'.format(epoch + 1, time.time()-start))
+    print('Training for {} Epochs took {} sec'.format(epochs, time.time() - overall_start_time))
 
     # Generate after the final epoch
     ##display.clear_output(wait=True)
     generate_and_save_images(generator,
                            epochs,
                            seed)
+    plt.show()
     plt.plot(loss_history)
     plt.xlabel('Batch #')
     plt.ylabel('Loss [entropy]')
-    plt.show() # doesn't work
+    plt.show()
 
 def generate_and_save_images(model, epoch, test_input):
   # Notice `training` is set to False.
@@ -306,29 +306,62 @@ def generate_and_save_images(model, epoch, test_input):
   plt.savefig('image_at_epoch_{:04d}.png'.format(epoch))
   #plt.show()
 
+
+def generate_heightmap(model=generator,  input_noise=tf.random.normal([1, noise_dim]), save=False, filename=None):
+    # restore from latest checkpoint if possible
+    checkpoint.restore(manager.latest_checkpoint)
+    if manager.latest_checkpoint:
+        print("[Checkpoint Manager]\t Using trained model.".format(manager.latest_checkpoint))
+    else:
+        print("[Checkpoint Manager]\t No trained model found.")
+
+    generated_heightmap = model(input_noise, training=False)
+    #print(generated_heightmap.shape)
+    plt.imshow(generated_heightmap[0, :, :, 0], cmap='gray', interpolation='none', resample=False)
+    plt.show()
+    #plt.imshow(generated_heightmap[0, :, :, 0], cmap='gray', vmin=0, vmax=1, interpolation='none',resample=False)
+    #plt.show()
+    if save:
+        if filename is None:
+
+            name = 'heightmap_{}.png'.format(int(input_noise[0,0]*1000))
+            name = 'heightmap_x.png'
+            print(name)
+            plt.savefig(name)
+        else:
+            plt.savefig(filename)
+    print('done')
+    #
+    # fix checkpoint error (Exception ignored)
+
+
+
+
 # Train the model
 # Call the train() method defined above to train the generator and
 # discriminator simultaneously. Note, training GANs can be tricky.
 # It's important that the generator and discriminator do not overpower
 # each other (e.g., that they train at a similar rate).
 #
-# At the beginning of the training, the generated images look like
-# random noise. As training progresses, the generated images will look
-# increasingly real.
-# This may take about one minute / epoch with the default settings on Colab.
-#
-print(hgt_filenames)
-heightmap_tensors = [OpenAndReadHeightmap(name) for name in hgt_filenames]
-#heightmap_tensors = [OpenAndReadHeightmap(name) for name in f_names]
-train_dataset = tf.data.Dataset.from_tensor_slices(heightmap_tensors)
-print('\n\tInput T to train...')
-user_input = input()
-if user_input == 't' or user_input == 'T':
-    train(train_dataset, EPOCHS)
-elif user_input == 'e' or user_input == 'E':
-    print('\n\tInput the number of EPOCHS to train.')
-    EPOCHS = int(input())
-    train(train_dataset, EPOCHS)
+
+def train_from_files(epochs=200):
+    print(hgt_filenames)
+    heightmap_tensors = [OpenAndReadHeightmap(name) for name in hgt_filenames]
+    #heightmap_tensors = [OpenAndReadHeightmap(name) for name in f_names]
+    train_dataset = tf.data.Dataset.from_tensor_slices(heightmap_tensors)
+
+    print('\n\tInput T to train...')
+    user_input = input()#'k'#
+    if user_input == 't' or user_input == 'T':
+        train(train_dataset, epochs)
+    elif user_input == 'e' or user_input == 'E':
+        print('\n\tInput the number of EPOCHS to train.')
+        #epochs = int(input())
+        train(train_dataset, int(input()))
+
+    while user_input == 'g' or user_input == 'G':
+        generate_heightmap(model=generator)
+        user_input = input()
 ##
 ##
 
