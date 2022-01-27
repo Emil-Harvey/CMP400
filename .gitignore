@@ -80,7 +80,9 @@ CMP400_Visualiser/Plugins/tensorflow-ue4/*
 
 # heightmap files
 *.hgt
+*.tif
 
 # ignore GAN training data
 *.png
+*.float
 /Python/heightmap_gan/training_checkpoints/**

@@ -75,9 +75,10 @@ def Main():
           '\nPlease enter a command (key) -'
           '\n\tG: Generate A Heightmap'
           '\n\tT: Train from Dataset'
+          '\n\tO: Othero'
           '\n\tQ: Quit'
           '\n\t...')
-    user_input = input()
+    user_input = input('\n\t--> ')
     if user_input == 't' or user_input == 'T':
         TrainFromInput()
     elif user_input == 'g' or user_input == 'G':
@@ -91,6 +92,7 @@ def Main():
                 gan.generate_heightmap(save=Save)
         else:
             gan.generate_heightmap()
-
+    elif user_input == 'o' or user_input == 'O':
+        gan.train_from_files()
 
 Main()
