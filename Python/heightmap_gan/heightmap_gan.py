@@ -48,6 +48,9 @@ def OpenAndReadHeightmap(filename):
 		f.close()
 	#else if file = tiff:
 	elif filename.endswith('.tif'):
+		#from PIL import Image
+		#im = Image.open(filename)
+		#im.show()
 		#f = open(filename, 'rb')
 		data = plt.imread(filename)
 
@@ -71,39 +74,41 @@ def OpenAndReadHeightmap(filename):
 
 		# make a rank 1 tensor  (1D array) and fill the tensor with the heightmap data
 		rank_1_tensor = tf.convert_to_tensor(data)
+		print(rank_1_tensor.shape)
 		# convert to rank 2 (2D array)
 		rank_2_tensor = tf.reshape(rank_1_tensor, [desired_row_length, desired_column_length, 1])
 
 	else:
-		# make a rank 1 tensor  (1D array) and fill the tensor with the heightmap data
-		rank_1_tensor = tf.convert_to_tensor(data)
-		# convert to rank 3 (3D array)
-		from math import sqrt
-		print('sqrt(',len(data), ') / desired_row_length =')
-		print(sqrt(len(data)), ' / ', desired_row_length,' =')
-		subdivisions = int(sqrt(len(data)) / desired_row_length)
-		print(subdivisions)
-		rank_3_tensor = tf.reshape(rank_1_tensor, [desired_row_length, desired_column_length,subdivisions, 1])
-		# convert to rank 2 (2D array)
-		rank_2_tensor = rank_3_tensor[:,:,0,:]#tf.reshape(rank_1_tensor, [desired_row_length, desired_column_length, 1])
+		# make a rank 2 tensor  (2D array) and fill the tensor with the heightmap data
+		rank_2_tensor = tf.convert_to_tensor(data)[:,:,0]
+		#print(rank_2_tensor.shape)#6000x6000 or 6000x6000x1
 
-	plt.imshow(rank_2_tensor[:, :], cmap="viridis")
+
+	print('INPUT matrix:',rank_2_tensor.shape,'\nshowing preview')
+	plt.imshow(rank_2_tensor[:, :], cmap="terrain") #viridis") #inferno") #
 	plt.show()
 
-	# slice into a hundred 120 by 120 sub-images
+	# slice into [a hundred][or 2500] 120 by 120 sub-images
 	sub_image_res = 120
-	array3D = [[[0 for k in range(sub_image_res)] for j in range(sub_image_res)] for i in range(100)]
+	number_of_sub_images = int( (len(rank_2_tensor[0]) / sub_image_res) ** 2 )
+	print('The data will be sliced into ',number_of_sub_images,' sub-images of size ',sub_image_res,'x',sub_image_res,'.')
+	array3D = [[[0 for k in range(sub_image_res)] for j in range(sub_image_res)] for i in range(number_of_sub_images)]
 
-	for index in range(100):
-		row_index = (index % 10) * 120
-		column_index = int(index / 10) * 120
-		array3D[index] = rank_2_tensor[row_index:row_index + 120, column_index:column_index + 120]
+	from math import sqrt
+	rows_columns = int(sqrt(number_of_sub_images))
+
+	for index in range(number_of_sub_images):
+		row_index = (index % rows_columns) * sub_image_res
+		column_index = int(index / rows_columns) * sub_image_res
+		array3D[index] = rank_2_tensor[row_index:row_index + sub_image_res, column_index:column_index + sub_image_res]
 
 	rank_3_tensor = tf.convert_to_tensor(array3D)
 
-	#print(rank_3_tensor.shape)
+	print(rank_3_tensor.shape)
+	plt.imshow(rank_3_tensor[0, :, :], cmap="inferno") #terrain")  #viridis") #
+	plt.show()
 
-	'''# print the tensor row by row
+	''''# print the tensor row by row
     print('\n------\n'.join(['\n'.join([''.join(['{:5}'.format(item)
                                                  for item in row])
                                         for row in sub_image])
@@ -393,7 +398,7 @@ def train_from_files(epochs=200):
 	heightmap_tensors = [OpenAndReadHeightmap(name) for name in f_names]
 	train_dataset = tf.data.Dataset.from_tensor_slices(heightmap_tensors)
 
-	print('\n\tInput T to train...')
+	print('\n\tInput T to train... \n or E or G...')
 	user_input = input()  #'k'#
 	if user_input == 't' or user_input == 'T':
 		train(train_dataset, epochs)
