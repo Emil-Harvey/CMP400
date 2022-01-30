@@ -1,0 +1,15 @@
+3 arc second resolution DEM
+	->  1px = 90x90m at the equator
+	->  this means the whole earth-map is 432,000px wide
+		~ earth's circumference is 40,041.5km[±33.5km]
+		~ pixels at 60` and above are stretched horizontally at least twice as wide
+		~ so better to use data between s59 and n59
+	-> 120x120px = 10.8km by 10.8km
+
+areas:
+ -  n30e000:	Central Europe; spanning Eastern England,
+		Southern Finland, Algeria & NW Egypt
+ -  n00e060:	India; spanning East Iran, The Himalayas, 
+		Western Bangladesh & The Maldives 
+ -  n30w090:	Eastern North America; spanning New Orleans,
+		The Hudson Bay, Newfoundland, Bermuda

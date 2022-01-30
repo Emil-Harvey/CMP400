@@ -48,10 +48,7 @@ def OpenAndReadHeightmap(filename):
 		f.close()
 	#else if file = tiff:
 	elif filename.endswith('.tif'):
-		#from PIL import Image
-		#im = Image.open(filename)
-		#im.show()
-		#f = open(filename, 'rb')
+
 		data = plt.imread(filename)
 
 	else:
