@@ -1,5 +1,6 @@
 import heightmap_gan as gan
 from array import array
+import osgeo as gdal
 #EPOCHS = 100
 
 #hgt_filenames = []
@@ -86,7 +87,7 @@ def OpenAndReadHeightmap(filename, view=False):
         gan.plt.show()
     #print(rank_3_tensor.shape)
 
-    # print the tensor row by row
+    '''# print the tensor row by row
         print('\n------\n'.join(['\n'.join([''.join(['{:5}'.format(item)
                                                      for item in row])
                                             for row in sub_image])
@@ -99,7 +100,7 @@ def OpenAndReadHeightmap(filename, view=False):
 
 
 def TrainFromInput(EPOCHS=100, viewInputs=False):
-    heightmap_tensors = [OpenAndReadHeightmap(name, view=viewInputs) for name in GetFilenames('Heightmaps/dem_n30e000/')]
+    heightmap_tensors = [OpenAndReadHeightmap(name, view=viewInputs) for name in GetFilenames('Heightmaps/dem_n00e060/')]
 
     train_dataset = gan.tf.data.Dataset.from_tensor_slices(heightmap_tensors)
 
