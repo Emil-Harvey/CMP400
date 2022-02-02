@@ -7,13 +7,14 @@ from tensorflow.python.ops.distributions.kullback_leibler import cross_entropy
 import time
 import matplotlib.pyplot as plt
 
-DISABLE_GPU_USAGE = True  #False#
 
-hgt_filenames = []
-heightmap_directory = 'Heightmaps/L32/'
-for latitude in range(44, 48):
-	for longditude in range(7, 10):
-		hgt_filenames.append(heightmap_directory + 'N' + str(latitude) + f'E{longditude:03}' + '.hgt')
+DISABLE_GPU_USAGE = False#True  #
+
+#hgt_filenames = []
+#heightmap_directory = 'Heightmaps/L32/'
+#for latitude in range(44, 48):
+#	for longditude in range(7, 10):
+#		hgt_filenames.append(heightmap_directory + 'N' + str(latitude) + f'E{longditude:03}' + '.hgt')
 
 if  (DISABLE_GPU_USAGE):
 	try:
@@ -27,7 +28,7 @@ if  (DISABLE_GPU_USAGE):
 		pass
 print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')), "Physical,",
 	  len(tf.config.list_logical_devices('GPU')), "Logical")
-
+#tf.test.gpu_device_name()
 
 #def slice_into_subimages(arr, nrows, ncols): #  https://stackoverflow.com/questions/16856788/slice-2d-array-into-smaller-2d-arrays
 
@@ -301,8 +302,8 @@ def train(dataset, epochs):
 		# Produce images for the GIF as you go
 		##display.clear_output(wait=True)
 
-		# Save the model every 15 epochs
-		if (epoch + 1) % 300 == 0:
+		# Save the model every X epochs
+		if (epoch + 1) % 20 == 0:
 			manager.save()
 		#print('LOSS:', loss.numpy())
 		#generate_and_save_images(generator,

@@ -8,18 +8,18 @@ from array import array
 #    for longditude in range(7,10):
 #        hgt_filenames.append(heightmap_directory + 'N' + str(latitude) + f'E{longditude:03}' + '.hgt')
 def GetFilenames(directory = 'Heightmaps/'):
-    tif_filenames = []
+    filenames = []
     import os
 
     for root, dirs, files in os.walk(directory):
         for filename in files:
             print(filename)
-            tif_filenames.append(directory + filename)
+            filenames.append(directory + filename)
 
-    return tif_filenames
+    return filenames
 
 def OpenAndReadHeightmap(filename, view=False):
-    print("Loading Heightmap...", filename)
+    print("Loading Heightmap...")#, filename)
 
     # if file is a .hgt:
     if filename.endswith('.hgt'):
@@ -48,7 +48,7 @@ def OpenAndReadHeightmap(filename, view=False):
 
         # make a rank 1 tensor  (1D array) and fill the tensor with the heightmap data
         rank_1_tensor = gan.tf.convert_to_tensor(data)
-        print(rank_1_tensor.shape)
+        #print(rank_1_tensor.shape)
         # convert to rank 2 (2D array)
         rank_2_tensor = gan.tf.reshape(rank_1_tensor, [1200, 1200, 1])
 
@@ -86,7 +86,7 @@ def OpenAndReadHeightmap(filename, view=False):
         gan.plt.show()
     #print(rank_3_tensor.shape)
 
-    # print the tensor row by row
+    '''# print the tensor row by row
         print('\n------\n'.join(['\n'.join([''.join(['{:5}'.format(item)
                                                      for item in row])
                                             for row in sub_image])
@@ -99,7 +99,7 @@ def OpenAndReadHeightmap(filename, view=False):
 
 
 def TrainFromInput(EPOCHS=100, viewInputs=False):
-    heightmap_tensors = [OpenAndReadHeightmap(name, view=viewInputs) for name in GetFilenames('Heightmaps/dem_n30e000/')]
+    heightmap_tensors = [OpenAndReadHeightmap(name, view=viewInputs) for name in GetFilenames('Heightmaps/E48/')] #dem_n30e000/')] #
 
     train_dataset = gan.tf.data.Dataset.from_tensor_slices(heightmap_tensors)
 
