@@ -86,3 +86,6 @@ CMP400_Visualiser/Plugins/tensorflow-ue4/*
 *.png
 *.float
 /Python/heightmap_gan/training_checkpoints/**
+
+#ignore backup copy
+CMP400_Visualiser 4.26

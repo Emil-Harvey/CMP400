@@ -13,13 +13,14 @@ def GetFilenames(directory = 'Heightmaps/'):
 
     for root, dirs, files in os.walk(directory):
         for filename in files:
-            print(filename)
-            filenames.append(directory + filename)
+            print(root + '/' + filename)
+            #print(root + filename)
+            filenames.append(root + '/' + filename)
 
     return filenames
 
 def OpenAndReadHeightmap(filename, view=False):
-    print("Loading Heightmap...")#, filename)
+    print("Loading Heightmap...")#, filename) #
 
     # if file is a .hgt:
     if filename.endswith('.hgt'):
@@ -33,6 +34,7 @@ def OpenAndReadHeightmap(filename, view=False):
         f.close()
     #else if file = tiff:
     elif filename.endswith('.tif'):
+        #print('.hgt')
         data = gan.plt.imread(filename)
         #print(data[:500])
     else:
@@ -64,7 +66,7 @@ def OpenAndReadHeightmap(filename, view=False):
         gan.plt.show()
 
     # slice into [a hundred][or 2500] 120 by 120 sub-images
-    sub_image_res = 120
+    sub_image_res = gan.INPUT_DATA_RES#300#120
     number_of_sub_images = int((len(rank_2_tensor[0]) / sub_image_res) ** 2)
     print('The data will be sliced into ', number_of_sub_images, ' sub-images of size ', sub_image_res, 'x',
           sub_image_res, '.')
@@ -99,9 +101,15 @@ def OpenAndReadHeightmap(filename, view=False):
 
 
 def TrainFromInput(EPOCHS=100, viewInputs=False):
-    heightmap_tensors = [OpenAndReadHeightmap(name, view=viewInputs) for name in GetFilenames('Heightmaps/E48/')] #dem_n30e000/')] #
+    heightmap_tensors = [OpenAndReadHeightmap(name, view=viewInputs) for name in GetFilenames('Heightmaps/all_hgts/')] #dem_n30e000/')] #
 
     train_dataset = gan.tf.data.Dataset.from_tensor_slices(heightmap_tensors)
+    print('                                --------------\n'
+          'total size of training dataset: ', len(heightmap_tensors) * len(heightmap_tensors[0]),'images\n'
+          '                                --------------')
+
+    train_dataset.shuffle(98, reshuffle_each_iteration=True)
+
 
 
     print('\n\tInput T to train; E to set the number of epochs...')
@@ -130,10 +138,10 @@ def Main():
     if user_input == 'tv' or user_input == 'TV':
         TrainFromInput(viewInputs=True)
     elif user_input == 'g' or user_input == 'G':
-        user_input = input('Would you like to save the image? [y/n]')
+        user_input = input('Would you like to save the image? [y/n] ')
         Save = (user_input == 'y' or user_input == 'Y')
         if Save:
-            user_input = input('Please enter a file name, including .png at the end:')
+            user_input = input('Please enter a file name, including .png at the end: ')
             if user_input[-4:] == '.png':
                 gan.generate_heightmap(save=Save, filename=user_input)
             else:

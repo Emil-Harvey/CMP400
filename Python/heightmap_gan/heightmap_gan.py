@@ -7,14 +7,12 @@ from tensorflow.python.ops.distributions.kullback_leibler import cross_entropy
 import time
 import matplotlib.pyplot as plt
 
-
+INPUT_DATA_RES = 240 #120
+HALF_DATA_RES = int(INPUT_DATA_RES/2)
+QUART_DATA_RES = int(INPUT_DATA_RES/4)
+EIGTH_DATA_RES = int(INPUT_DATA_RES/8)
 DISABLE_GPU_USAGE = False#True  #
 
-#hgt_filenames = []
-#heightmap_directory = 'Heightmaps/L32/'
-#for latitude in range(44, 48):
-#	for longditude in range(7, 10):
-#		hgt_filenames.append(heightmap_directory + 'N' + str(latitude) + f'E{longditude:03}' + '.hgt')
 
 if  (DISABLE_GPU_USAGE):
 	try:
@@ -87,7 +85,7 @@ def OpenAndReadHeightmap(filename):
 	plt.show()
 
 	# slice into [a hundred][or 2500] 120 by 120 sub-images
-	sub_image_res = 120
+	sub_image_res = INPUT_DATA_RES#120
 	number_of_sub_images = int( (len(rank_2_tensor[0]) / sub_image_res) ** 2 )
 	print('The data will be sliced into ',number_of_sub_images,' sub-images of size ',sub_image_res,'x',sub_image_res,'.')
 	array3D = [[[0 for k in range(sub_image_res)] for j in range(sub_image_res)] for i in range(number_of_sub_images)]
@@ -127,25 +125,30 @@ def OpenAndReadHeightmap(filename):
 
 def make_generator_model():
 	model = tf.keras.Sequential()
-	model.add(layers.Dense(30 * 30 * 256, use_bias=False, input_shape=(100,)))
+	model.add(layers.Dense(EIGTH_DATA_RES * EIGTH_DATA_RES * 256, use_bias=False, input_shape=(100,)))
 	model.add(layers.BatchNormalization())
 	model.add(layers.LeakyReLU())
 
-	model.add(layers.Reshape((30, 30, 256)))
-	assert model.output_shape == (None, 30, 30, 256)  # Note: None is the batch size
+	model.add(layers.Reshape((QUART_DATA_RES, QUART_DATA_RES, 256)))
+	assert model.output_shape == (None, EIGTH_DATA_RES, EIGTH_DATA_RES, 256)  # Note: None is the batch size
 
 	model.add(layers.Conv2DTranspose(128, (5, 5), strides=(1, 1), padding='same', use_bias=False))
-	assert model.output_shape == (None, 30, 30, 128)
+	assert model.output_shape == (None, EIGTH_DATA_RES, EIGTH_DATA_RES, 128)
 	model.add(layers.BatchNormalization())
 	model.add(layers.LeakyReLU())
 
 	model.add(layers.Conv2DTranspose(64, (5, 5), strides=(2, 2), padding='same', use_bias=False))
-	assert model.output_shape == (None, 60, 60, 64)
+	assert model.output_shape == (None, QUART_DATA_RES, QUART_DATA_RES, 64)
+	model.add(layers.BatchNormalization())
+	model.add(layers.LeakyReLU())
+
+	model.add(layers.Conv2DTranspose(64, (5, 5), strides=(2, 2), padding='same', use_bias=False))
+	assert model.output_shape == (None, HALF_DATA_RES, HALF_DATA_RES, 64)
 	model.add(layers.BatchNormalization())
 	model.add(layers.LeakyReLU())
 
 	model.add(layers.Conv2DTranspose(1, (5, 5), strides=(2, 2), padding='same', use_bias=False, activation='tanh'))
-	assert model.output_shape == (None, 120, 120, 1)  ###
+	assert model.output_shape == (None, INPUT_DATA_RES, INPUT_DATA_RES, 1)  ###
 
 	return model
 
@@ -153,7 +156,11 @@ def make_generator_model():
 def make_discriminator_model():
 	model = tf.keras.Sequential()
 	model.add(layers.Conv2D(64, (5, 5), strides=(2, 2), padding='same',
-							input_shape=[120, 120, 1]))
+							input_shape=[INPUT_DATA_RES, INPUT_DATA_RES, 1]))
+	model.add(layers.LeakyReLU())
+	model.add(layers.Dropout(0.3))
+
+	model.add(layers.Conv2D(128, (5, 5), strides=(2, 2), padding='same'))
 	model.add(layers.LeakyReLU())
 	model.add(layers.Dropout(0.3))
 
@@ -181,7 +188,7 @@ sess = tf.compat.v1.Session(config=config)
 # https://docs.nvidia.com/deeplearning/performance/mixed-precision-training/index.html
 ''' only works on GPUs of 7.0 or higher
 mixed_precision.set_global_policy('mixed_float16')
-'''
+#'''
 
 generator = make_generator_model()
 # The discriminator is a CNN-based image classifier.
@@ -232,7 +239,7 @@ discriminator_optimizer = tf.keras.optimizers.Adam(1e-4)
 # to save and restore models, which can be helpful in case a long running training task is interrupted.
 #
 checkpoint_dir = './training_checkpoints'
-checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt_v02")
+checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt_v03")
 checkpoint = tf.train.Checkpoint(generator_optimizer=generator_optimizer,
 								 discriminator_optimizer=discriminator_optimizer,
 								 generator=generator,
@@ -242,10 +249,10 @@ manager = tf.train.CheckpointManager(checkpoint, checkpoint_prefix, max_to_keep=
 
 # Define the training loop
 BUFFER_SIZE = 60000
-BATCH_SIZE = 3
+BATCH_SIZE = 10
 EPOCHS = 200
-noise_dim = 100
-num_examples_to_generate = 16
+noise_dim = 100 # size of input noise
+num_examples_to_generate = 16 # when previewing the 'results' after training; with pyplot
 
 # this seed will be reused overtime (so it's easier
 # to visualize progress in the animated GIF)
@@ -303,7 +310,7 @@ def train(dataset, epochs):
 		##display.clear_output(wait=True)
 
 		# Save the model every X epochs
-		if (epoch + 1) % 20 == 0:
+		if (epoch + 1) % 200 == 0:
 			manager.save()
 		#print('LOSS:', loss.numpy())
 		#generate_and_save_images(generator,
@@ -345,6 +352,7 @@ def generate_and_save_images(model, epoch, test_input):
 
 #using the GAN's trained generator, create a heightmap and export/save to a readable file.
 def generate_heightmap(model=generator, input_noise=tf.random.normal([1, noise_dim]), save=False, filename=None):
+	print('Generating...')
 	# restore from latest checkpoint if possible
 	checkpoint.restore(manager.latest_checkpoint)
 	if manager.latest_checkpoint:
@@ -355,41 +363,45 @@ def generate_heightmap(model=generator, input_noise=tf.random.normal([1, noise_d
 	generated_heightmap = model(input_noise, training=False)
 	#print(generated_heightmap.shape)
 	plt.imshow(generated_heightmap[0, :, :, 0], cmap='gray', interpolation='none', resample=False)
-	plt.show()
+	plt.axis('off')		# remove axes
 	#plt.imshow(generated_heightmap[0, :, :, 0], cmap='gray', vmin=0, vmax=1, interpolation='none',resample=False)
 	#plt.show()
 	if save:
 		if filename is None:
-			#save the array as a PNG image using PyPlot:
+			#save the array as a PNG image using PyPlot:	[remove white border around image]
 			name = 'heightmap_{}.png'.format(int(input_noise[0, 0] * 1000))
-			name = 'heightmap_x.png'
-			print(name)
-			plt.savefig(name)
+			#name = 'heightmap_x.png'
+			plt.savefig(name, bbox_inches='tight',pad_inches = 0)
+			print('> Saved as', name)
 
-			#save the array as a .float (texture) file format
+			'''#save the array as a .float (texture) file format
 			name = 'heightmap_{}.float'.format(int(input_noise[0, 0] * 1000))
 			print(name)
 			exported_file = open(name, mode='wb')  #  create new/overwrite file
 			generated_heightmap[0, :, :, 0].numpy().tofile(exported_file)
 			exported_file.close()
+			#'''
 		else:
-			plt.savefig(filename)
+			plt.savefig(filename, bbox_inches='tight',pad_inches = 0)
+			print('Saved.')
+
+	plt.show()
 	print('done')
 
 
 #
-# fix checkpoint error (Exception ignored)
+## fix checkpoint error/warnings (Exception ignored)
 
 
 # Train the model
 # Call the train() method defined above to train the generator and
 # discriminator simultaneously. Note, training GANs can be tricky.
 # It's important that the generator and discriminator do not overpower
-# each other (e.g., that they train at a similar rate).
+# each other (e.g. that they train at a similar rate).
 #
 
 def train_from_files(epochs=200):
-	print(hgt_filenames)
+	#print(hgt_filenames)
 	#heightmap_tensors = [OpenAndReadHeightmap(name) for name in hgt_filenames]
 	f_names = ['Heightmaps/dem_tif_n60w180/n60w155_dem.tif', 'Heightmaps/dem_tif_n60w180/n60w160_dem.tif', 'Heightmaps/dem_tif_n60w180/n65w180_dem.tif']
 
