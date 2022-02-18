@@ -129,7 +129,7 @@ def make_generator_model():
 	model.add(layers.BatchNormalization())
 	model.add(layers.LeakyReLU())
 
-	model.add(layers.Reshape((QUART_DATA_RES, QUART_DATA_RES, 256)))
+	model.add(layers.Reshape((EIGTH_DATA_RES, EIGTH_DATA_RES, 256)))
 	assert model.output_shape == (None, EIGTH_DATA_RES, EIGTH_DATA_RES, 256)  # Note: None is the batch size
 
 	model.add(layers.Conv2DTranspose(128, (5, 5), strides=(1, 1), padding='same', use_bias=False))
@@ -142,8 +142,8 @@ def make_generator_model():
 	model.add(layers.BatchNormalization())
 	model.add(layers.LeakyReLU())
 
-	model.add(layers.Conv2DTranspose(64, (5, 5), strides=(2, 2), padding='same', use_bias=False))
-	assert model.output_shape == (None, HALF_DATA_RES, HALF_DATA_RES, 64)
+	model.add(layers.Conv2DTranspose(32, (5, 5), strides=(2, 2), padding='same', use_bias=False))
+	assert model.output_shape == (None, HALF_DATA_RES, HALF_DATA_RES, 32)
 	model.add(layers.BatchNormalization())
 	model.add(layers.LeakyReLU())
 
@@ -228,7 +228,8 @@ def generator_loss(fake_output):
 	return cross_entropy(tf.ones_like(fake_output), fake_output)
 
 
-loss_history = []
+gen_loss_history = []
+disc_loss_history = []
 
 # The Adam optimization algorithm is an extension of stochastic gradient descent.
 generator_optimizer = tf.keras.optimizers.Adam(1e-4)
@@ -239,7 +240,7 @@ discriminator_optimizer = tf.keras.optimizers.Adam(1e-4)
 # to save and restore models, which can be helpful in case a long running training task is interrupted.
 #
 checkpoint_dir = './training_checkpoints'
-checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt_v03")
+checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt_v05")
 checkpoint = tf.train.Checkpoint(generator_optimizer=generator_optimizer,
 								 discriminator_optimizer=discriminator_optimizer,
 								 generator=generator,
@@ -248,8 +249,8 @@ checkpoint = tf.train.Checkpoint(generator_optimizer=generator_optimizer,
 manager = tf.train.CheckpointManager(checkpoint, checkpoint_prefix, max_to_keep=3)
 
 # Define the training loop
-BUFFER_SIZE = 60000
-BATCH_SIZE = 10
+#BUFFER_SIZE = 60000
+BATCH_SIZE = 1
 EPOCHS = 200
 noise_dim = 100 # size of input noise
 num_examples_to_generate = 16 # when previewing the 'results' after training; with pyplot
@@ -287,12 +288,14 @@ def train_step(images):
 	generator_optimizer.apply_gradients(zip(gradients_of_generator, generator.trainable_variables))
 	discriminator_optimizer.apply_gradients(zip(gradients_of_discriminator, discriminator.trainable_variables))
 
-	return gen_loss
+	return gen_loss, disc_loss
 
 
-def train(dataset, epochs):
-	# restore from latest checkpoint if possible
-	checkpoint.restore(manager.latest_checkpoint)
+def train(dataset, epochs, loss_graph_enabled=True, load_from_checkpoint=True):
+	if load_from_checkpoint:
+		print('loading...')
+		# restore from latest checkpoint if possible
+		checkpoint.restore(manager.latest_checkpoint)
 	if manager.latest_checkpoint:
 		print("[Checkpoint Manager]\t Restored from {}".format(manager.latest_checkpoint))
 	else:
@@ -304,18 +307,23 @@ def train(dataset, epochs):
 
 		for image_batch in dataset:
 			print("\t\ttraining image batch...")
-			loss_history.append(train_step(image_batch))
+			if loss_graph_enabled:
+				gen_loss, disc_loss = train_step(image_batch)
+				gen_loss_history.append(gen_loss)
+				disc_loss_history.append(disc_loss)
+			else:
+				train_step(image_batch)
 
 		# Produce images for the GIF as you go
 		##display.clear_output(wait=True)
 
 		# Save the model every X epochs
-		if (epoch + 1) % 200 == 0:
-			manager.save()
+		if (epoch + 1) % 10 == 0:
+			#manager.save()
 		#print('LOSS:', loss.numpy())
-		#generate_and_save_images(generator,
-		#                         epoch + 1,
-		#                         seed)
+			generate_and_save_images(generator,
+			                         epoch + 1,
+			                         seed)
 
 		print('Epoch  {}  took {} sec'.format(epoch + 1, time.time() - start))
 	print('Training for {} Epochs took {} sec'.format(epochs, time.time() - overall_start_time))
@@ -326,10 +334,19 @@ def train(dataset, epochs):
 							 epochs,
 							 seed)
 	plt.show()
-	plt.plot(loss_history)
+	# generator
+	plt.plot(gen_loss_history)
 	plt.xlabel('Batch #')
-	plt.ylabel('Loss [entropy]')
+	plt.ylabel('Generator Loss [entropy]')
 	plt.show()
+	# discriminator
+	plt.plot(gen_loss_history)
+	plt.xlabel('Batch #')
+	plt.ylabel('Generator Loss [entropy]')
+	plt.show()
+
+	print('Saving checkpoint...')
+	manager.save()
 
 
 def generate_and_save_images(model, epoch, test_input):
@@ -337,11 +354,11 @@ def generate_and_save_images(model, epoch, test_input):
 	# This is so all layers run in inference mode (batchnorm).
 	predictions = model(test_input, training=False)
 
-	fig = plt.figure(figsize=(4, 4))
+	fig = plt.figure(figsize=(10, 10))
 
 	for i in range(predictions.shape[0]):
 		plt.subplot(4, 4, i + 1)
-		plt.imshow(predictions[i, :, :, 0] * 127.5 + 127.5, cmap='gist_rainbow')
+		plt.imshow(predictions[i, :, :, 0], cmap='gray', interpolation='none', resample=False) # * 127.5 + 127.5
 		plt.axis('off')
 
 	plt.savefig('image_at_epoch_{:04d}.png'.format(epoch))
@@ -356,22 +373,23 @@ def generate_heightmap(model=generator, input_noise=tf.random.normal([1, noise_d
 	# restore from latest checkpoint if possible
 	checkpoint.restore(manager.latest_checkpoint)
 	if manager.latest_checkpoint:
-		print("[Checkpoint Manager]\t Using trained model.".format(manager.latest_checkpoint))
+		print("[Checkpoint Manager]\t Using trained model {}.".format(manager.latest_checkpoint))
 	else:
 		print("[Checkpoint Manager]\t No trained model found.")
 
 	generated_heightmap = model(input_noise, training=False)
 	#print(generated_heightmap.shape)
-	plt.imshow(generated_heightmap[0, :, :, 0], cmap='gray', interpolation='none', resample=False)
+	plt.figure(figsize=(10, 10)) # set image dimensions in inches
+	plt.imshow(generated_heightmap[0, :, :, 0], cmap='gray', interpolation='none', resample=False) # vmin=0, vmax=1,
 	plt.axis('off')		# remove axes
-	#plt.imshow(generated_heightmap[0, :, :, 0], cmap='gray', vmin=0, vmax=1, interpolation='none',resample=False)
-	#plt.show()
+
+	#fig.set_size_inches(18.5, 10.5)
 	if save:
 		if filename is None:
-			#save the array as a PNG image using PyPlot:	[remove white border around image]
+			# save the array as a PNG image using PyPlot:	[remove white border around image]
 			name = 'heightmap_{}.png'.format(int(input_noise[0, 0] * 1000))
 			#name = 'heightmap_x.png'
-			plt.savefig(name, bbox_inches='tight',pad_inches = 0)
+			plt.savefig(name, bbox_inches='tight', pad_inches = 0, dpi = 24)
 			print('> Saved as', name)
 
 			'''#save the array as a .float (texture) file format
@@ -382,7 +400,7 @@ def generate_heightmap(model=generator, input_noise=tf.random.normal([1, noise_d
 			exported_file.close()
 			#'''
 		else:
-			plt.savefig(filename, bbox_inches='tight',pad_inches = 0)
+			plt.savefig(filename, bbox_inches='tight',pad_inches = 0, dpi=24)
 			print('Saved.')
 
 	plt.show()
