@@ -1,0 +1,68 @@
+the models used by Christopher Beckham & Christopher Pal:
+
+https://github.com/christopher-beckham/gan-heightmaps
+
+-------------GENERATOR:
+
+latent dim(ensions) 		256
+
+def default_generator(latent_dim, is_a_grayscale, nch=512, h=5, initial_size=4, final_size=512, div=[2,2,4,4,8,8,16], num_repeats=0, dropout_p=0., bilinear_upsample=False):
+    layer = InputLayer((None, latent_dim))
+    layer = DenseLayer(layer, num_units=nch*initial_size*initial_size, nonlinearity=linear)
+    layer = BatchNormLayer(layer)
+    layer = ReshapeLayer(layer, (-1, nch, initial_size, initial_size))
+    div = [nch/elem for elem in div]   #.... <-- 7 layers  (div = [256, 256, 128,128,64,64,32] )
+    for n in div:
+        for r in range(num_repeats+1):
+            layer = Conv2DLayer(layer, num_filters=n, filter_size=h, pad='same', nonlinearity=linear)
+            layer = BatchNormLayer(layer)
+            layer = NonlinearityLayer(layer, nonlinearity=LeakyRectify(0.2))
+            if dropout_p > 0.:
+                layer = DropoutLayer(layer, p=dropout_p)
+        if bilinear_upsample:
+            layer = BilinearUpsample2DLayer(layer, factor=2)
+        else:
+            # not consistent with p2p, since that uses deconv to upsample (if no bilinear upsample)
+            layer = Upscale2DLayer(layer, scale_factor=2)
+    layer = Conv2DLayer(layer, num_filters=1 if is_a_grayscale else 3, filter_size=h, pad='same', nonlinearity=sigmoid)
+	#####
+    return layer
+	#####
+
+
+
+def default_discriminator(in_shp, is_a_grayscale, nch=512, h=5, div=[8,4,4,2,2,1,1], num_repeats=0, bn=False, pool_mode='max', nonlinearity='sigmoid'):
+    layer = InputLayer((None, 1 if is_a_grayscale else 3, in_shp, in_shp))
+    n = nch / 8
+   
+    div = [nch/elem for elem in div]
+    for idx,n in enumerate(div):
+        for r in range(num_repeats+1):
+            layer = Conv2DLayer(layer, num_filters=n, filter_size=h, pad='same', nonlinearity=linear)
+            if bn:
+                layer = BatchNormLayer(layer)
+            layer = NonlinearityLayer(layer, nonlinearity=LeakyRectify(0.2))
+        if pool_mode == 'max':
+            layer = MaxPool2DLayer(layer, pool_size=2)
+        else:
+            layer = Pool2DLayer(layer, pool_size=2, mode='average_inc_pad')
+    layer = Conv2DLayer(layer, num_filters=1, filter_size=h, pad='same')
+    reduction_factor = nch // (2**len(div))
+    layer = Pool2DLayer(layer, pool_size=(reduction_factor,reduction_factor), mode='average_inc_pad')
+
+    layer = ReshapeLayer(layer, (-1, 1))
+    layer = NonlinearityLayer(layer, nonlinearity)
+    # ------
+    return layer
+
+
+
+
+
+
+
+
+
+
+
+

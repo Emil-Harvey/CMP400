@@ -42,17 +42,24 @@ def OpenAndReadHeightmap(filename, preview_data=False):
         return
 
     #print('here')
+    from math import sqrt
 
     if len(data) == 1201 * 1201:
-        #reduce the array to 1200x1200 - delete the last row/column.
-        del data[1200 * 1201:]
-        del data[::1201]
+        input_resolution = int(sqrt(len(data)))
+        nearest_slicable_resolution = gan.INPUT_DATA_RES * int(sqrt(len(data))/gan.INPUT_DATA_RES)
+        nsr = nearest_slicable_resolution
+        #reduce the array to 1200x1200 - delete the last rows/columns.
+        columns_to_delete = input_resolution - nsr
+
+        del data[nearest_slicable_resolution * input_resolution:]
+        for column in range(columns_to_delete):
+            del data[::nsr +1] ###############################
 
         # make a rank 1 tensor  (1D array) and fill the tensor with the heightmap data
         rank_1_tensor = gan.tf.convert_to_tensor(data)
         #print(rank_1_tensor.shape)
         # convert to rank 2 (2D array)
-        rank_2_tensor = gan.tf.reshape(rank_1_tensor, [1200, 1200, 1])
+        rank_2_tensor = gan.tf.reshape(rank_1_tensor, [nsr, nsr, 1])
 
     else:
         # make a rank 2 tensor  (2D array) and fill the tensor with the heightmap data
@@ -74,13 +81,13 @@ def OpenAndReadHeightmap(filename, preview_data=False):
                            sub_image_res, '.')
     array3D = [[[0 for k in range(sub_image_res)] for j in range(sub_image_res)] for i in range(number_of_sub_images)]
 
-    from math import sqrt
     rows_columns = int(sqrt(number_of_sub_images))
 
     for index in range(number_of_sub_images):
         row_index = (index % rows_columns) * sub_image_res
         column_index = int(index / rows_columns) * sub_image_res
         array3D[index] = rank_2_tensor[row_index:row_index + sub_image_res, column_index:column_index + sub_image_res]
+
 
     rank_3_tensor = gan.tf.convert_to_tensor(array3D)
 
@@ -116,7 +123,8 @@ def TrainFromInput(EPOCHS=100, viewInputs=False):
           'total size of training dataset: ', len(heightmap_tensors) * len(heightmap_tensors[0]),'images\n'
           '                                --------------')
 
-    train_dataset.shuffle(98, reshuffle_each_iteration=True)
+    train_dataset.shuffle(gan.BUFFER_SIZE, reshuffle_each_iteration=True).batch(gan.BATCH_SIZE)
+
 
 
 

@@ -7,10 +7,13 @@ from tensorflow.python.ops.distributions.kullback_leibler import cross_entropy
 import time
 import matplotlib.pyplot as plt
 
-INPUT_DATA_RES = 240 #120
-HALF_DATA_RES = int(INPUT_DATA_RES/2)
-QUART_DATA_RES = int(INPUT_DATA_RES/4)
-EIGTH_DATA_RES = int(INPUT_DATA_RES/8)
+INPUT_DATA_RES = 256 #120
+I2_DATA_RES = int(INPUT_DATA_RES / 2) #120 #128
+I4_DATA_RES = int(INPUT_DATA_RES / 4) #60 #64
+I8_DATA_RES = int(INPUT_DATA_RES / 8) #30 #31
+I16_DATA_RES = int(INPUT_DATA_RES/16) #15 #16
+I32_DATA_RES = int(INPUT_DATA_RES/32) #7.5 #8
+I64_DATA_RES = int(INPUT_DATA_RES/64) #3.75 #4
 DISABLE_GPU_USAGE = False#True  #
 
 
@@ -84,7 +87,7 @@ def OpenAndReadHeightmap(filename):
 	plt.imshow(rank_2_tensor[:, :], cmap="terrain") #viridis") #inferno") #
 	plt.show()
 
-	# slice into [a hundred][or 2500] 120 by 120 sub-images
+	# slice into several X by X sub-images
 	sub_image_res = INPUT_DATA_RES#120
 	number_of_sub_images = int( (len(rank_2_tensor[0]) / sub_image_res) ** 2 )
 	print('The data will be sliced into ',number_of_sub_images,' sub-images of size ',sub_image_res,'x',sub_image_res,'.')
@@ -125,13 +128,13 @@ def OpenAndReadHeightmap(filename):
 
 def make_generator_model():
 	model = tf.keras.Sequential()
-	model.add(layers.Dense(EIGTH_DATA_RES * EIGTH_DATA_RES * 256, use_bias=False, input_shape=(100,)))
+	model.add(layers.Dense(I64_DATA_RES * I64_DATA_RES * 256, use_bias=False, input_shape=(100,)))
 	model.add(layers.BatchNormalization())
 	model.add(layers.LeakyReLU())
 
-	model.add(layers.Reshape((EIGTH_DATA_RES, EIGTH_DATA_RES, 256)))
-	assert model.output_shape == (None, EIGTH_DATA_RES, EIGTH_DATA_RES, 256)  # Note: None is the batch size
-
+	model.add(layers.Reshape((I64_DATA_RES, I64_DATA_RES, 256)))
+	assert model.output_shape == (None, I64_DATA_RES, I64_DATA_RES, 256)  # Note: None is the batch size
+	'''
 	model.add(layers.Conv2DTranspose(128, (5, 5), strides=(1, 1), padding='same', use_bias=False))
 	assert model.output_shape == (None, EIGTH_DATA_RES, EIGTH_DATA_RES, 128)
 	model.add(layers.BatchNormalization())
@@ -148,7 +151,46 @@ def make_generator_model():
 	model.add(layers.LeakyReLU())
 
 	model.add(layers.Conv2DTranspose(1, (5, 5), strides=(2, 2), padding='same', use_bias=False, activation='tanh'))
+	'''
+
+	##latent_dim, is_a_grayscale,
+	nch=512
+	h=5
+	initial_size=4
+	final_size=INPUT_DATA_RES
+	div=[2, 2, 4, 4, 8, 16]
+	num_repeats=1
+	dropout_p=0.
+	bilinear_upsample=False
+	#layer = InputLayer((None, latent_dim))
+	#layer = DenseLayer(layer, num_units=nch * initial_size * initial_size, nonlinearity=linear)
+	#layer = BatchNormLayer(layer)
+	#layer = ReshapeLayer(layer, (-1, nch, initial_size, initial_size))
+	div = [nch / elem for elem in div]  # .... <-- 7 layers  (div = [256, 256, 128,128,64,64,32] )(div = [120, 120, 60,60,30,30,15 ] )
+	for n in div:
+		for r in range(num_repeats + 1):
+			print('n=', n)
+			model.add(layers.Conv2DTranspose(n, (5, 5), strides=(1, 1), padding='same', use_bias=False))#layer = Conv2DLayer(layer, num_filters=n, filter_size=h, pad='same', nonlinearity=linear)
+			model.add(layers.BatchNormalization())#layer = BatchNormLayer(layer)
+			model.add(layers.LeakyReLU())#layer = NonlinearityLayer(layer, nonlinearity=LeakyRectify(0.2))
+			#if dropout_p > 0.:
+				#layer = DropoutLayer(layer, p=dropout_p)
+		#if bilinear_upsample:
+			#layer = BilinearUpsample2DLayer(layer, factor=2)
+		#else:
+			## not consistent with p2p, since that uses deconv to upsample (if no bilinear upsample)
+			#layer = Upscale2DLayer(layer, scale_factor=2)
+		model.add(layers.UpSampling2D(size=(2, 2),interpolation='bilinear'))
+		print(model.output_shape)
+	model.add(layers.Conv2DTranspose(1, (5, 5), strides=(1, 1), padding='same', use_bias=False, activation='tanh'))#layer = Conv2DLayer(layer, num_filters=1 if is_a_grayscale else 3, filter_size=h, pad='same',nonlinearity=sigmoid)
+	#####
+	#return layer
+
+	#####
+	print( model.output_shape)
 	assert model.output_shape == (None, INPUT_DATA_RES, INPUT_DATA_RES, 1)  ###
+
+
 
 	return model
 
@@ -164,7 +206,7 @@ def make_discriminator_model():
 	model.add(layers.LeakyReLU())
 	model.add(layers.Dropout(0.3))
 
-	model.add(layers.Conv2D(128, (5, 5), strides=(2, 2), padding='same'))
+	model.add(layers.Conv2D(256, (5, 5), strides=(2, 2), padding='same'))
 	model.add(layers.LeakyReLU())
 	model.add(layers.Dropout(0.3))
 
@@ -240,7 +282,7 @@ discriminator_optimizer = tf.keras.optimizers.Adam(1e-4)
 # to save and restore models, which can be helpful in case a long running training task is interrupted.
 #
 checkpoint_dir = './training_checkpoints'
-checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt_v05")
+checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt_v06")
 checkpoint = tf.train.Checkpoint(generator_optimizer=generator_optimizer,
 								 discriminator_optimizer=discriminator_optimizer,
 								 generator=generator,
@@ -249,7 +291,7 @@ checkpoint = tf.train.Checkpoint(generator_optimizer=generator_optimizer,
 manager = tf.train.CheckpointManager(checkpoint, checkpoint_prefix, max_to_keep=3)
 
 # Define the training loop
-#BUFFER_SIZE = 60000
+BUFFER_SIZE = 100
 BATCH_SIZE = 1
 EPOCHS = 200
 noise_dim = 100 # size of input noise
@@ -318,7 +360,7 @@ def train(dataset, epochs, loss_graph_enabled=True, load_from_checkpoint=True):
 		##display.clear_output(wait=True)
 
 		# Save the model every X epochs
-		if (epoch + 1) % 10 == 0:
+		if (epoch + 1) % 30 == 0:
 			#manager.save()
 		#print('LOSS:', loss.numpy())
 			generate_and_save_images(generator,
@@ -361,7 +403,7 @@ def generate_and_save_images(model, epoch, test_input):
 		plt.imshow(predictions[i, :, :, 0], cmap='gray', interpolation='none', resample=False) # * 127.5 + 127.5
 		plt.axis('off')
 
-	plt.savefig('image_at_epoch_{:04d}.png'.format(epoch))
+	plt.savefig('image_at_epoch_{:04d} (v06).png'.format(epoch))
 
 
 #plt.show()
