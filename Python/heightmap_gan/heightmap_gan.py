@@ -178,9 +178,9 @@ sess = tf.compat.v1.Session(config=config)
 # tensorflow automatically performs loss scaling (moving loss values
 # closer to 1 to avoid rounding errors) with mixed_float16
 # https://docs.nvidia.com/deeplearning/performance/mixed-precision-training/index.html
-''' only works on GPUs of 7.0 or higher
+#''' only works on GPUs of 7.0 or higher
 mixed_precision.set_global_policy('mixed_float16')
-'''
+#'''
 
 generator = make_generator_model()
 # The discriminator is a CNN-based image classifier.

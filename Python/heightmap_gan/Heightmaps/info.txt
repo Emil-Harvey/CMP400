@@ -13,3 +13,6 @@ areas:
 		Western Bangladesh & The Maldives 
  -  n30w090:	Eastern North America; spanning New Orleans,
 		The Hudson Bay, Newfoundland, Bermuda
+
+
+Important to use a varied dataset which approximates the majority of earth terrain. This means altitude distributions etc. of the dataset should roughly match that of earth.

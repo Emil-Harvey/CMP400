@@ -1,6 +1,6 @@
 import heightmap_gan as gan
 from array import array
-import osgeo as gdal
+#import osgeo as gdal
 #EPOCHS = 100
 
 #hgt_filenames = []
