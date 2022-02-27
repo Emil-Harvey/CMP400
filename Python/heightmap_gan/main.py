@@ -1,6 +1,5 @@
 import heightmap_gan as gan
 from array import array
-import osgeo as gdal
 #EPOCHS = 100
 
 #hgt_filenames = []
@@ -9,18 +8,19 @@ import osgeo as gdal
 #    for longditude in range(7,10):
 #        hgt_filenames.append(heightmap_directory + 'N' + str(latitude) + f'E{longditude:03}' + '.hgt')
 def GetFilenames(directory = 'Heightmaps/'):
-    tif_filenames = []
+    filenames = []
     import os
 
     for root, dirs, files in os.walk(directory):
         for filename in files:
-            print(filename)
-            tif_filenames.append(directory + filename)
+            print(root + '/' + filename)
+            #print(root + filename)
+            filenames.append(root + '/' + filename)
 
-    return tif_filenames
+    return filenames
 
-def OpenAndReadHeightmap(filename, view=False):
-    print("Loading Heightmap...", filename)
+def OpenAndReadHeightmap(filename, preview_data=False):
+    print("Loading Heightmap...")#, filename) #
 
     # if file is a .hgt:
     if filename.endswith('.hgt'):
@@ -34,6 +34,7 @@ def OpenAndReadHeightmap(filename, view=False):
         f.close()
     #else if file = tiff:
     elif filename.endswith('.tif'):
+        #print('.hgt')
         data = gan.plt.imread(filename)
         #print(data[:500])
     else:
@@ -41,17 +42,24 @@ def OpenAndReadHeightmap(filename, view=False):
         return
 
     #print('here')
+    from math import sqrt
 
     if len(data) == 1201 * 1201:
-        #reduce the array to 1200x1200 - delete the last row/column.
-        del data[1200 * 1201:]
-        del data[::1201]
+        input_resolution = int(sqrt(len(data)))
+        nearest_slicable_resolution = gan.INPUT_DATA_RES * int(sqrt(len(data))/gan.INPUT_DATA_RES)
+        nsr = nearest_slicable_resolution
+        #reduce the array to 1200x1200 - delete the last rows/columns.
+        columns_to_delete = input_resolution - nsr
+
+        del data[nearest_slicable_resolution * input_resolution:]
+        for column in range(columns_to_delete):
+            del data[::nsr +1] ###############################
 
         # make a rank 1 tensor  (1D array) and fill the tensor with the heightmap data
         rank_1_tensor = gan.tf.convert_to_tensor(data)
-        print(rank_1_tensor.shape)
+        #print(rank_1_tensor.shape)
         # convert to rank 2 (2D array)
-        rank_2_tensor = gan.tf.reshape(rank_1_tensor, [1200, 1200, 1])
+        rank_2_tensor = gan.tf.reshape(rank_1_tensor, [nsr, nsr, 1])
 
     else:
         # make a rank 2 tensor  (2D array) and fill the tensor with the heightmap data
@@ -59,19 +67,20 @@ def OpenAndReadHeightmap(filename, view=False):
         #print(rank_2_tensor.shape)#6000x6000 or 6000x6000x1
 
     print(filename,':  matrix:', rank_2_tensor.shape, )
-    if view:
+    if preview_data:
         print('showing preview:')
         gan.plt.imshow(rank_2_tensor[:, :], cmap="terrain")  #viridis") #inferno") #
         gan.plt.show()
 
+
+
     # slice into [a hundred][or 2500] 120 by 120 sub-images
-    sub_image_res = 120
+    sub_image_res = gan.INPUT_DATA_RES#300#120
     number_of_sub_images = int((len(rank_2_tensor[0]) / sub_image_res) ** 2)
-    print('The data will be sliced into ', number_of_sub_images, ' sub-images of size ', sub_image_res, 'x',
-          sub_image_res, '.')
+    if preview_data: print('The data will be sliced into ', number_of_sub_images, ' sub-images of size ', sub_image_res, 'x',
+                           sub_image_res, '.')
     array3D = [[[0 for k in range(sub_image_res)] for j in range(sub_image_res)] for i in range(number_of_sub_images)]
 
-    from math import sqrt
     rows_columns = int(sqrt(number_of_sub_images))
 
     for index in range(number_of_sub_images):
@@ -79,11 +88,18 @@ def OpenAndReadHeightmap(filename, view=False):
         column_index = int(index / rows_columns) * sub_image_res
         array3D[index] = rank_2_tensor[row_index:row_index + sub_image_res, column_index:column_index + sub_image_res]
 
+
     rank_3_tensor = gan.tf.convert_to_tensor(array3D)
 
-    if view:
+    if preview_data:
         print(rank_3_tensor.shape)
         gan.plt.imshow(rank_3_tensor[0, :, :], cmap="inferno")  #terrain")  #viridis") #
+        gan.plt.show()
+
+        gan.plt.figure(figsize=(10, 10))  # set image dimensions in inches
+        gan.plt.imshow(rank_3_tensor[0, :, :], cmap='gist_rainbow', interpolation='none',
+                       resample=False)  # vmin=0, vmax=1,
+        gan.plt.axis('off')  # remove axes
         gan.plt.show()
     #print(rank_3_tensor.shape)
 
@@ -100,12 +116,19 @@ def OpenAndReadHeightmap(filename, view=False):
 
 
 def TrainFromInput(EPOCHS=100, viewInputs=False):
-    heightmap_tensors = [OpenAndReadHeightmap(name, view=viewInputs) for name in GetFilenames('Heightmaps/dem_n00e060/')]
+    heightmap_tensors = [OpenAndReadHeightmap(name, preview_data=viewInputs) for name in GetFilenames('Heightmaps/all_hgts/')] #dem_n30e000/')] #
 
     train_dataset = gan.tf.data.Dataset.from_tensor_slices(heightmap_tensors)
+    print('                                --------------\n'
+          'total size of training dataset: ', len(heightmap_tensors) * len(heightmap_tensors[0]),'images\n'
+          '                                --------------')
+
+    train_dataset.shuffle(gan.BUFFER_SIZE, reshuffle_each_iteration=True).batch(gan.BATCH_SIZE)
 
 
-    print('\n\tInput T to train; E to set the number of epochs...')
+
+
+    print('\n\tInput T to train; E to set the number of epochs; C to disable checkpoint loading...')
     user_input = input()
     if user_input == 't' or user_input == 'T':
         gan.train(train_dataset, EPOCHS)
@@ -113,6 +136,10 @@ def TrainFromInput(EPOCHS=100, viewInputs=False):
         print('\n\tInput the number of EPOCHS to train.')
         EPOCHS = int(input())
         gan.train(train_dataset, EPOCHS)
+    elif user_input == 'c' or user_input == 'c':
+        print('\n\tInput the number of EPOCHS to train.')
+        EPOCHS = int(input())
+        gan.train(train_dataset, EPOCHS, load_from_checkpoint=False)
 
     return True
 
@@ -126,22 +153,33 @@ def Main():
           '\n\tQ: Quit'
           '\n\t...')
     user_input = input('\n\t--> ')
-    if user_input == 't' or user_input == 'T':
-        TrainFromInput()
-    if user_input == 'tv' or user_input == 'TV':
-        TrainFromInput(viewInputs=True)
-    elif user_input == 'g' or user_input == 'G':
-        user_input = input('Would you like to save the image? [y/n]')
-        Save = (user_input == 'y' or user_input == 'Y')
-        if Save:
-            user_input = input('Please enter a file name, including .png at the end:')
-            if user_input[-4:] == '.png':
-                gan.generate_heightmap(save=Save, filename=user_input)
+    while(user_input != 'q'):
+        if user_input == 't' or user_input == 'T':
+            TrainFromInput()
+        if user_input == 'tv' or user_input == 'TV':
+            TrainFromInput(viewInputs=True)
+        elif user_input == 'g' or user_input == 'G':
+            user_input = input('Would you like to save the image? [y/n] ')
+            Save = (user_input == 'y' or user_input == 'Y')
+            if Save:
+                user_input = input('Please enter a file name, including .png at the end: ')
+                if user_input[-4:] == '.png':
+                    gan.generate_heightmap(save=Save, filename=user_input)
+                else:
+                    gan.generate_heightmap(save=Save)
             else:
-                gan.generate_heightmap(save=Save)
-        else:
-            gan.generate_heightmap()
-    elif user_input == 'o' or user_input == 'O':
-        gan.train_from_files()
+                gan.generate_heightmap()
+        elif user_input == 'o' or user_input == 'O':
+            gan.train_from_files()
+
+        print('\n\t\tCMP400\t-\tDeep Convolutional Generative Adversarial Network'
+              '\n\t----------------------------------------------------------------'
+              '\nPlease enter a command (key) -'
+              '\n\tG: Generate A Heightmap'
+              '\n\tT: Train from Dataset'
+              '\n\tO: Other'
+              '\n\tQ: Quit'
+              '\n\t...')
+        user_input = input('\n\t--> ')
 
 Main()
