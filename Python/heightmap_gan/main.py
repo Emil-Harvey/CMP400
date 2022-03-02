@@ -48,12 +48,13 @@ def OpenAndReadHeightmap(filename, preview_data=False):
         input_resolution = int(sqrt(len(data)))
         nearest_slicable_resolution = gan.INPUT_DATA_RES * int(sqrt(len(data))/gan.INPUT_DATA_RES)
         nsr = nearest_slicable_resolution
-        #reduce the array to 1200x1200 - delete the last rows/columns.
+        #reduce the array to NSRxNSR - delete the extra rows/columns.
         columns_to_delete = input_resolution - nsr
-
-        del data[nearest_slicable_resolution * input_resolution:]
+        del data[nsr * input_resolution:]
+        col_to_delete = input_resolution
         for column in range(columns_to_delete):
-            del data[::nsr +1] ###############################
+            del data[::col_to_delete] ###############################
+            col_to_delete -= 1
 
         # make a rank 1 tensor  (1D array) and fill the tensor with the heightmap data
         rank_1_tensor = gan.tf.convert_to_tensor(data)
@@ -120,7 +121,7 @@ def TrainFromInput(EPOCHS=100, viewInputs=False):
 
     train_dataset = gan.tf.data.Dataset.from_tensor_slices(heightmap_tensors)
     print('                                --------------\n'
-          'total size of training dataset: ', len(heightmap_tensors) * len(heightmap_tensors[0]),'images\n'
+          'total size of training dataset: ', len(heightmap_tensors) * len(heightmap_tensors[0]),'images\n' #
           '                                --------------')
 
     train_dataset.shuffle(gan.BUFFER_SIZE, reshuffle_each_iteration=True).batch(gan.BATCH_SIZE)
