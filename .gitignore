@@ -68,6 +68,7 @@ CMP400_Visualiser/Saved/*
 
 # Compiled source files for the engine to use
 CMP400_Visualiser/Intermediate/*
+CMP400_Visualiser/Intermediate/
 CMP400_Visualiser/Plugins/*/Intermediate/*
 
 # Cache files for the editor to use
