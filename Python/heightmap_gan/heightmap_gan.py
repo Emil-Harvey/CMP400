@@ -169,7 +169,7 @@ def make_generator_model():
 	div = [nch / elem for elem in div]  # .... <-- 7 layers  (div = [256, 256, 128,128,64,64,32] )(div = [120, 120, 60,60,30,30,15 ] )
 	for n in div:
 		for r in range(num_repeats + 1):
-			print('n=', n)
+			#print('n=', n)
 			model.add(layers.Conv2DTranspose(n, (5, 5), strides=(1, 1), padding='same', use_bias=False))#layer = Conv2DLayer(layer, num_filters=n, filter_size=h, pad='same', nonlinearity=linear)
 			model.add(layers.BatchNormalization())#layer = BatchNormLayer(layer)
 			model.add(layers.LeakyReLU())#layer = NonlinearityLayer(layer, nonlinearity=LeakyRectify(0.2))
@@ -181,13 +181,13 @@ def make_generator_model():
 			## not consistent with p2p, since that uses deconv to upsample (if no bilinear upsample)
 			#layer = Upscale2DLayer(layer, scale_factor=2)
 		model.add(layers.UpSampling2D(size=(2, 2),interpolation='bilinear'))
-		print(model.output_shape)
+		#print(model.output_shape)
 	model.add(layers.Conv2DTranspose(1, (5, 5), strides=(1, 1), padding='same', use_bias=False, activation='tanh'))#layer = Conv2DLayer(layer, num_filters=1 if is_a_grayscale else 3, filter_size=h, pad='same',nonlinearity=sigmoid)
 	#####
 	#return layer
 
 	#####
-	print( model.output_shape)
+	#print( model.output_shape)
 	assert model.output_shape == (None, INPUT_DATA_RES, INPUT_DATA_RES, 1)  ###
 
 
@@ -282,7 +282,7 @@ discriminator_optimizer = tf.keras.optimizers.Adam(1e-4)
 # to save and restore models, which can be helpful in case a long running training task is interrupted.
 #
 checkpoint_dir = './training_checkpoints'
-checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt_v06")
+checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt_v07")
 checkpoint = tf.train.Checkpoint(generator_optimizer=generator_optimizer,
 								 discriminator_optimizer=discriminator_optimizer,
 								 generator=generator,
@@ -291,8 +291,8 @@ checkpoint = tf.train.Checkpoint(generator_optimizer=generator_optimizer,
 manager = tf.train.CheckpointManager(checkpoint, checkpoint_prefix, max_to_keep=3)
 
 # Define the training loop
-BUFFER_SIZE = 100
-BATCH_SIZE = 1
+BUFFER_SIZE = 16
+BATCH_SIZE = 10
 EPOCHS = 200
 noise_dim = 100 # size of input noise
 num_examples_to_generate = 16 # when previewing the 'results' after training; with pyplot
@@ -348,7 +348,7 @@ def train(dataset, epochs, loss_graph_enabled=True, load_from_checkpoint=True):
 		start = time.time()
 
 		for image_batch in dataset:
-			print("\t\ttraining image batch...")
+			#print("\t\ttraining image batch...")
 			if loss_graph_enabled:
 				gen_loss, disc_loss = train_step(image_batch)
 				gen_loss_history.append(gen_loss)
@@ -367,7 +367,7 @@ def train(dataset, epochs, loss_graph_enabled=True, load_from_checkpoint=True):
 			                         epoch + 1,
 			                         seed)
 
-		print('Epoch  {}  took {} sec'.format(epoch + 1, time.time() - start))
+		print('Epoch  {} ({} batches) took {} sec'.format(epoch + 1, len(dataset), time.time() - start))
 	print('Training for {} Epochs took {} sec'.format(epochs, time.time() - overall_start_time))
 
 	# Generate after the final epoch
@@ -403,7 +403,7 @@ def generate_and_save_images(model, epoch, test_input):
 		plt.imshow(predictions[i, :, :, 0], cmap='gray', interpolation='none', resample=False) # * 127.5 + 127.5
 		plt.axis('off')
 
-	plt.savefig('image_at_epoch_{:04d} (v06).png'.format(epoch))
+	plt.savefig('image_at_epoch_{:04d} (v07).png'.format(epoch))
 
 
 #plt.show()

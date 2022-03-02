@@ -13,14 +13,15 @@ def GetFilenames(directory = 'Heightmaps/'):
 
     for root, dirs, files in os.walk(directory):
         for filename in files:
-            print(root + '/' + filename)
+            #print(root + '/' + filename)
             #print(root + filename)
             filenames.append(root + '/' + filename)
 
     return filenames
 
 def OpenAndReadHeightmap(filename, preview_data=False):
-    print("Loading Heightmap...")#, filename) #
+    if preview_data:
+        print("Loading Heightmap...")#, filename) #
 
     # if file is a .hgt:
     if filename.endswith('.hgt'):
@@ -111,7 +112,8 @@ def OpenAndReadHeightmap(filename, preview_data=False):
                                  for sub_image in rank_3_tensor[0:16]]))
         #'''
 
-    print("...Finished Loading.")
+    if preview_data:
+        print("...Finished Loading.")
 
     return rank_3_tensor
 
