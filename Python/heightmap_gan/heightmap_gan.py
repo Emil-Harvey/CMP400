@@ -282,7 +282,7 @@ discriminator_optimizer = tf.keras.optimizers.Adam(1e-4)
 # to save and restore models, which can be helpful in case a long running training task is interrupted.
 #
 checkpoint_dir = './training_checkpoints'
-checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt_v07")
+checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt_v08")
 checkpoint = tf.train.Checkpoint(generator_optimizer=generator_optimizer,
 								 discriminator_optimizer=discriminator_optimizer,
 								 generator=generator,
@@ -291,7 +291,7 @@ checkpoint = tf.train.Checkpoint(generator_optimizer=generator_optimizer,
 manager = tf.train.CheckpointManager(checkpoint, checkpoint_prefix, max_to_keep=3)
 
 # Define the training loop
-BUFFER_SIZE = 16
+BUFFER_SIZE = 4
 BATCH_SIZE = 10
 EPOCHS = 200
 noise_dim = 100 # size of input noise
@@ -333,8 +333,8 @@ def train_step(images):
 	return gen_loss, disc_loss
 
 
-def train(dataset, epochs, loss_graph_enabled=True, load_from_checkpoint=True):
-	if load_from_checkpoint:
+def train(dataset, epochs, loss_graph_enabled=True, use_checkpoint=True):
+	if use_checkpoint:
 		print('loading...')
 		# restore from latest checkpoint if possible
 		checkpoint.restore(manager.latest_checkpoint)
@@ -360,7 +360,7 @@ def train(dataset, epochs, loss_graph_enabled=True, load_from_checkpoint=True):
 		##display.clear_output(wait=True)
 
 		# Save the model every X epochs
-		if (epoch + 1) % 30 == 0:
+		if (epoch + 1) % 25 == 0:
 			#manager.save()
 		#print('LOSS:', loss.numpy())
 			generate_and_save_images(generator,
@@ -387,8 +387,9 @@ def train(dataset, epochs, loss_graph_enabled=True, load_from_checkpoint=True):
 	plt.ylabel('Generator Loss [entropy]')
 	plt.show()
 
-	print('Saving checkpoint...')
-	manager.save()
+	if use_checkpoint:
+		print('Saving checkpoint...')
+		manager.save()
 
 
 def generate_and_save_images(model, epoch, test_input):
