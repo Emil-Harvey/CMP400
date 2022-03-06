@@ -133,26 +133,36 @@ def TrainFromInput(EPOCHS=100, viewInputs=False):
     ##print(heightmap_tensors[1].shape)
     ##print(heightmap_tensors[400].shape)
     hmt = gan.tf.convert_to_tensor(heightmap_tensors)
-    #hmt = gan.tf.reshape(hmt, [data_size, 256,256, 1])
+    hmt = gan.tf.reshape(hmt, [data_size, 256, 256, 1])
+    hmt = gan.tf.random.shuffle(hmt)
+
     #print(hmt.shape)
 
-    train_dataset = gan.tf.data.Dataset.from_tensors(hmt)
+    train_dataset = gan.tf.data.Dataset.from_tensor_slices(hmt)
+
+
+    train_dataset = train_dataset.shuffle(gan.BUFFER_SIZE, reshuffle_each_iteration=True).batch(
+        batch_size=gan.BATCH_SIZE).prefetch(4)
+
     print('\n                                --------------\n'
           'total size of training dataset: ', hmt.shape ,'images\n' #
-          #'                  ~ batch size: ', len(train_dataset),'\n'
+          '                ~ comprised of: ', len(train_dataset),'batches\n'
+          '                ~           of: ', gan.BATCH_SIZE,'images\n'
           '                                --------------')
 
-    train_dataset.shuffle(gan.BUFFER_SIZE, reshuffle_each_iteration=True).batch(gan.BATCH_SIZE).prefetch(4)
 
     #import tensorflow_datasets as tfds
     #tfds.benchmark(train_dataset)
 
-   # print('~ batch size 2:', train_dataset.shape())
+    print('~ batch size :', len(train_dataset))
+    #print('~', train_dataset)
+
+
     #print('~ batch size 3:', len(heightmap_tensors))
 
 
-    print('\n\tInput T to train; E to set the number of epochs; C to disable checkpoint loading...')
-    user_input = input()
+    print('\n\tInput T to train; E to set the number of epochs; C to load a checkpoint ...')
+    user_input = input('  -->')
     if user_input == 't' or user_input == 'T':
         gan.train(train_dataset, EPOCHS)
     elif user_input == 'e' or user_input == 'E':
@@ -162,7 +172,7 @@ def TrainFromInput(EPOCHS=100, viewInputs=False):
     elif user_input == 'c' or user_input == 'c':
         print('\n\tInput the number of EPOCHS to train.')
         EPOCHS = int(input())
-        gan.train(train_dataset, EPOCHS, use_checkpoint=False)
+        gan.train(train_dataset, EPOCHS, use_checkpoint=True)
 
     return True
 

@@ -292,7 +292,7 @@ manager = tf.train.CheckpointManager(checkpoint, checkpoint_prefix, max_to_keep=
 
 # Define the training loop
 BUFFER_SIZE = 4
-BATCH_SIZE = 10
+BATCH_SIZE = 8
 EPOCHS = 200
 noise_dim = 100 # size of input noise
 num_examples_to_generate = 16 # when previewing the 'results' after training; with pyplot
@@ -334,6 +334,8 @@ def train_step(images):
 
 
 def train(dataset, epochs, loss_graph_enabled=True, use_checkpoint=True):
+	print('len', len(dataset))
+
 	if use_checkpoint:
 		print('loading...')
 		# restore from latest checkpoint if possible
@@ -360,7 +362,7 @@ def train(dataset, epochs, loss_graph_enabled=True, use_checkpoint=True):
 		##display.clear_output(wait=True)
 
 		# Save the model every X epochs
-		if (epoch + 1) % 25 == 0:
+		if (epoch + 1) % 15 == 0:
 			#manager.save()
 		#print('LOSS:', loss.numpy())
 			generate_and_save_images(generator,
@@ -369,6 +371,10 @@ def train(dataset, epochs, loss_graph_enabled=True, use_checkpoint=True):
 
 		print('Epoch  {} ({} batches) took {} sec'.format(epoch + 1, len(dataset), time.time() - start))
 	print('Training for {} Epochs took {} sec'.format(epochs, time.time() - overall_start_time))
+
+	if use_checkpoint:
+		print('Saving checkpoint...')
+		manager.save()
 
 	# Generate after the final epoch
 	##display.clear_output(wait=True)
@@ -382,14 +388,12 @@ def train(dataset, epochs, loss_graph_enabled=True, use_checkpoint=True):
 	plt.ylabel('Generator Loss [entropy]')
 	plt.show()
 	# discriminator
-	plt.plot(gen_loss_history)
+	plt.plot(disc_loss_history)
 	plt.xlabel('Batch #')
-	plt.ylabel('Generator Loss [entropy]')
+	plt.ylabel('Discriminator Loss [entropy]')
 	plt.show()
 
-	if use_checkpoint:
-		print('Saving checkpoint...')
-		manager.save()
+
 
 
 def generate_and_save_images(model, epoch, test_input):
