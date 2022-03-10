@@ -56,7 +56,7 @@ def OpenAndReadHeightmap(filename, preview_data=False):
         del data[nsr * input_resolution:]
         col_to_delete = input_resolution
         for column in range(amount_to_crop):
-            del data[::col_to_delete] ###############################
+            del data[::col_to_delete]
             col_to_delete -= 1
         #'''
         #gan.tf.keras.layers.Cropping2D(cropping=(amount_to_crop))(data)
@@ -141,8 +141,7 @@ def TrainFromInput(EPOCHS=100, viewInputs=False):
     train_dataset = gan.tf.data.Dataset.from_tensor_slices(hmt)
 
 
-    train_dataset = train_dataset.shuffle(gan.BUFFER_SIZE, reshuffle_each_iteration=True).batch(
-        batch_size=gan.BATCH_SIZE).prefetch(4)
+    train_dataset = train_dataset.shuffle(gan.BUFFER_SIZE, reshuffle_each_iteration=True).batch(gan.BATCH_SIZE).prefetch(4).cache()
 
     print('\n                                --------------\n'
           'total size of training dataset: ', hmt.shape ,'images\n' #
@@ -154,7 +153,7 @@ def TrainFromInput(EPOCHS=100, viewInputs=False):
     #import tensorflow_datasets as tfds
     #tfds.benchmark(train_dataset)
 
-    print('~ batch size :', len(train_dataset))
+    #print('~ batch size :', len(train_dataset))
     #print('~', train_dataset)
 
 

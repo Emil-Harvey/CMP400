@@ -291,7 +291,7 @@ checkpoint = tf.train.Checkpoint(generator_optimizer=generator_optimizer,
 manager = tf.train.CheckpointManager(checkpoint, checkpoint_prefix, max_to_keep=3)
 
 # Define the training loop
-BUFFER_SIZE = 4
+BUFFER_SIZE = 4000
 BATCH_SIZE = 8
 EPOCHS = 200
 noise_dim = 100 # size of input noise
@@ -372,7 +372,8 @@ def train(dataset, epochs, loss_graph_enabled=True, use_checkpoint=True):
 		print('Epoch  {} ({} batches) took {} sec'.format(epoch + 1, len(dataset), time.time() - start))
 	print('Training for {} Epochs took {} sec'.format(epochs, time.time() - overall_start_time))
 
-	if use_checkpoint:
+
+	if input('would you like to save? type \'y\' :') == 'y':
 		print('Saving checkpoint...')
 		manager.save()
 
@@ -426,6 +427,10 @@ def generate_heightmap(model=generator, input_noise=tf.random.normal([1, noise_d
 
 	generated_heightmap = model(input_noise, training=False)
 	#print(generated_heightmap.shape)
+	decision = discriminator(generated_heightmap)  # negative values for fake images, positive values for real images
+	print ('the discriminator gives this a score of:', decision[0,0])
+
+
 	plt.figure(figsize=(10, 10)) # set image dimensions in inches
 	plt.imshow(generated_heightmap[0, :, :, 0], cmap='gray', interpolation='none', resample=False) # vmin=0, vmax=1,
 	plt.axis('off')		# remove axes
