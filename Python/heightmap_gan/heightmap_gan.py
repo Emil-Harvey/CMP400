@@ -282,7 +282,7 @@ discriminator_optimizer = tf.keras.optimizers.Adam(1e-4)
 # to save and restore models, which can be helpful in case a long running training task is interrupted.
 #
 checkpoint_dir = './training_checkpoints'
-checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt_v08")
+checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt_v09")
 checkpoint = tf.train.Checkpoint(generator_optimizer=generator_optimizer,
 								 discriminator_optimizer=discriminator_optimizer,
 								 generator=generator,
@@ -339,6 +339,8 @@ def train(dataset, epochs, loss_graph_enabled=True, use_checkpoint=True):
 	if use_checkpoint:
 		print('loading...')
 		# restore from latest checkpoint if possible
+		print(manager.checkpoints)
+		print(manager.latest_checkpoint)
 		checkpoint.restore(manager.latest_checkpoint)
 	if manager.latest_checkpoint:
 		print("[Checkpoint Manager]\t Restored from {}".format(manager.latest_checkpoint))
@@ -362,9 +364,11 @@ def train(dataset, epochs, loss_graph_enabled=True, use_checkpoint=True):
 		##display.clear_output(wait=True)
 
 		# Save the model every X epochs
+		if (epoch) % 50 == 0:
+			manager.save()
 		if (epoch + 1) % 15 == 0:
-			#manager.save()
-		#print('LOSS:', loss.numpy())
+
+			#print('LOSS:', loss.numpy())
 			generate_and_save_images(generator,
 			                         epoch + 1,
 			                         seed)
@@ -409,7 +413,7 @@ def generate_and_save_images(model, epoch, test_input):
 		plt.imshow(predictions[i, :, :, 0], cmap='gray', interpolation='none', resample=False) # * 127.5 + 127.5
 		plt.axis('off')
 
-	plt.savefig('image_at_epoch_{:04d} (v07).png'.format(epoch))
+	plt.savefig('image_at_epoch_{:04d} (v09).png'.format(epoch))
 
 
 #plt.show()
@@ -426,13 +430,17 @@ def generate_heightmap(model=generator, input_noise=tf.random.normal([1, noise_d
 		print("[Checkpoint Manager]\t No trained model found.")
 
 	generated_heightmap = model(input_noise, training=False)
-	#print(generated_heightmap.shape)
+	print(generated_heightmap.shape)
 	decision = discriminator(generated_heightmap)  # negative values for fake images, positive values for real images
-	print ('the discriminator gives this a score of:', decision[0,0])
-
+	print ('\t\tthe discriminator gives this a score of:', decision[0,0])
 
 	plt.figure(figsize=(10, 10)) # set image dimensions in inches
-	plt.imshow(generated_heightmap[0, :, :, 0], cmap='gray', interpolation='none', resample=False) # vmin=0, vmax=1,
+
+	#test = generated_heightmap[0, :, :, 0]
+	#plt.imsave(filename, test, cmap='gray', vmin=0, vmax=1)  #nonetype error?
+	plt.imshow(generated_heightmap[0, :, :, 0], cmap='gray', interpolation='none',               resample=False)  #
+	plt.show()
+	plt.imshow(generated_heightmap[0, :, :, 0], cmap='gray', interpolation='none',vmin=0, vmax=1, resample=False) #
 	plt.axis('off')		# remove axes
 
 	#fig.set_size_inches(18.5, 10.5)
@@ -441,7 +449,7 @@ def generate_heightmap(model=generator, input_noise=tf.random.normal([1, noise_d
 			# save the array as a PNG image using PyPlot:	[remove white border around image]
 			name = 'heightmap_{}.png'.format(int(input_noise[0, 0] * 1000))
 			#name = 'heightmap_x.png'
-			plt.savefig(name, bbox_inches='tight', pad_inches = 0, dpi = 24)
+			plt.savefig(name, bbox_inches='tight', pad_inches = 0, dpi = INPUT_DATA_RES)
 			print('> Saved as', name)
 
 			'''#save the array as a .float (texture) file format
@@ -452,7 +460,7 @@ def generate_heightmap(model=generator, input_noise=tf.random.normal([1, noise_d
 			exported_file.close()
 			#'''
 		else:
-			plt.savefig(filename, bbox_inches='tight',pad_inches = 0, dpi=24)
+			plt.savefig(filename, bbox_inches='tight',pad_inches = 0, dpi=INPUT_DATA_RES)
 			print('Saved.')
 
 	plt.show()
@@ -479,7 +487,7 @@ def train_from_files(epochs=200):
 	train_dataset = tf.data.Dataset.from_tensor_slices(heightmap_tensors)
 
 	print('\n\tInput T to train... \n or E or G...')
-	user_input = input()  #'k'#
+	user_input = input()
 	if user_input == 't' or user_input == 'T':
 		train(train_dataset, epochs)
 	elif user_input == 'e' or user_input == 'E':

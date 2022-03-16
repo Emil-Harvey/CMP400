@@ -1,3 +1,7 @@
+
+gpu - 1 epoch: 183 seconds
+cpu - 1 epoch: 2543 seconds
+
 the models used by Christopher Beckham & Christopher Pal:
 
 https://github.com/christopher-beckham/gan-heightmaps

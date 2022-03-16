@@ -94,11 +94,16 @@ def OpenAndReadHeightmap(filename, preview_data=False):
         column_index = int(index / rows_columns) * sub_image_res
         array3D[index] = rank_2_tensor[row_index:row_index + sub_image_res, column_index:column_index + sub_image_res]
 
-
     rank_3_tensor = gan.tf.convert_to_tensor(array3D)
+
+    max_altitude = 8850.0  # normalise height values to be between 0 and 1:
+
+    rank_3_tensor = gan.tf.cast((gan.tf.cast(rank_3_tensor, gan.tf.float32) / max_altitude), gan.tf.float32)
 
     if preview_data:
         print(rank_3_tensor.shape)
+        gan.plt.imsave('imshow_test.png', rank_3_tensor[0, :, :], cmap='gray', vmin=0, vmax=1)  # nonetype error?
+
         gan.plt.imshow(rank_3_tensor[0, :, :], cmap="inferno")  #terrain")  #viridis") #
         gan.plt.show()
 
@@ -123,41 +128,33 @@ def OpenAndReadHeightmap(filename, preview_data=False):
 
     return rank_3_tensor
 
-
+no_saved_dataset = True ###
 def TrainFromInput(EPOCHS=100, viewInputs=False):
     print('loading dataset from files...')
-    heightmap_tensors = [OpenAndReadHeightmap(name, preview_data=viewInputs) for name in GetFilenames('Heightmaps/all_hgts/')] #dem_n30e000/')] #
-    data_size = len(heightmap_tensors) * len(heightmap_tensors[0])
-    ##new_array = gan.tf.keras.layers.concatenate(heightmap_tensors, axis=1)  # merge the dataset to remove the 'separation by folder'
-    ##print(heightmap_tensors[0].shape)
-    ##print(heightmap_tensors[1].shape)
-    ##print(heightmap_tensors[400].shape)
-    hmt = gan.tf.convert_to_tensor(heightmap_tensors)
-    hmt = gan.tf.reshape(hmt, [data_size, 256, 256, 1])
-    hmt = gan.tf.random.shuffle(hmt)
+    if no_saved_dataset:
+        heightmap_tensors = [OpenAndReadHeightmap(name, preview_data=viewInputs) for name in GetFilenames('Heightmaps/all_hgts/')] #dem_n30e000/')] #
+        data_size = len(heightmap_tensors) * len(heightmap_tensors[0])
 
-    #print(hmt.shape)
+        hmt = gan.tf.convert_to_tensor(heightmap_tensors)
+        hmt = gan.tf.reshape(hmt, [data_size, 256, 256, 1])
+        hmt = gan.tf.random.shuffle(hmt)
+        #print(hmt.shape)
 
-    train_dataset = gan.tf.data.Dataset.from_tensor_slices(hmt)
+        train_dataset = gan.tf.data.Dataset.from_tensor_slices(hmt)
+        train_dataset = train_dataset.shuffle(gan.BUFFER_SIZE, reshuffle_each_iteration=True).batch(gan.BATCH_SIZE).prefetch(4).cache()
 
+        writer = gan.tf.data.experimental.TFRecordWriter('mydataset_15-03-22.tfrecord')  # save the dataset to a file
+        writer.write(train_dataset)
 
-    train_dataset = train_dataset.shuffle(gan.BUFFER_SIZE, reshuffle_each_iteration=True).batch(gan.BATCH_SIZE).prefetch(4).cache()
-
-    print('\n                                --------------\n'
-          'total size of training dataset: ', hmt.shape ,'images\n' #
-          '                ~ comprised of: ', len(train_dataset),'batches\n'
-          '                ~           of: ', gan.BATCH_SIZE,'images\n'
-          '                                --------------')
-
-
-    #import tensorflow_datasets as tfds
-    #tfds.benchmark(train_dataset)
-
-    #print('~ batch size :', len(train_dataset))
-    #print('~', train_dataset)
-
-
-    #print('~ batch size 3:', len(heightmap_tensors))
+        print('\n                                --------------\n'
+              'total size of training dataset: ', hmt.shape ,'images\n' #
+              '                ~ comprised of: ', len(train_dataset),'batches\n'
+              '                ~           of: ', gan.BATCH_SIZE,'images\n'
+              '                                --------------')
+    else:
+        print('loaded tensorflow dataset -   mydataset_15-03-22.tfrecord')
+        # load saved dataset
+        train_dataset = gan.tf.data.TFRecordDataset('mydataset_15-03-22.tfrecord')
 
 
     print('\n\tInput T to train; E to set the number of epochs; C to load a checkpoint ...')
