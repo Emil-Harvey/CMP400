@@ -281,7 +281,7 @@ discriminator_optimizer = tf.keras.optimizers.Adam(1e-4)
 #
 # to save and restore models, which can be helpful in case a long running training task is interrupted.
 #
-checkpoint_dir = './training_checkpoints'
+checkpoint_dir = os.path.normpath('D:/1800480_test_checkpoints') #'./training_checkpoints')#
 checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt_v09")
 checkpoint = tf.train.Checkpoint(generator_optimizer=generator_optimizer,
 								 discriminator_optimizer=discriminator_optimizer,
@@ -293,7 +293,7 @@ manager = tf.train.CheckpointManager(checkpoint, checkpoint_prefix, max_to_keep=
 # Define the training loop
 BUFFER_SIZE = 4000
 BATCH_SIZE = 8
-EPOCHS = 200
+EPOCHS = 1#200
 noise_dim = 100 # size of input noise
 num_examples_to_generate = 16 # when previewing the 'results' after training; with pyplot
 
@@ -334,13 +334,13 @@ def train_step(images):
 
 
 def train(dataset, epochs, loss_graph_enabled=True, use_checkpoint=True):
-	print('len', len(dataset))
+	#print('len', len(dataset))
 
 	if use_checkpoint:
-		print('loading...')
+		print('loading checkpoints...')
 		# restore from latest checkpoint if possible
-		print(manager.checkpoints)
-		print(manager.latest_checkpoint)
+		#print(manager.checkpoints)
+		#print(manager.latest_checkpoint)
 		checkpoint.restore(manager.latest_checkpoint)
 	if manager.latest_checkpoint:
 		print("[Checkpoint Manager]\t Restored from {}".format(manager.latest_checkpoint))
@@ -364,7 +364,7 @@ def train(dataset, epochs, loss_graph_enabled=True, use_checkpoint=True):
 		##display.clear_output(wait=True)
 
 		# Save the model every X epochs
-		if (epoch) % 50 == 0:
+		if (epoch + 1) % 50 == 0:
 			manager.save()
 		if (epoch + 1) % 15 == 0:
 
@@ -377,7 +377,7 @@ def train(dataset, epochs, loss_graph_enabled=True, use_checkpoint=True):
 	print('Training for {} Epochs took {} sec'.format(epochs, time.time() - overall_start_time))
 
 
-	if input('would you like to save? type \'y\' :') == 'y':
+	if input('would you like to save? type \'y\': ') == 'y':
 		print('Saving checkpoint...')
 		manager.save()
 
@@ -429,6 +429,7 @@ def generate_heightmap(model=generator, input_noise=tf.random.normal([1, noise_d
 	else:
 		print("[Checkpoint Manager]\t No trained model found.")
 
+	print(int(input_noise[0, 0] * 1000))
 	generated_heightmap = model(input_noise, training=False)
 	print(generated_heightmap.shape)
 	decision = discriminator(generated_heightmap)  # negative values for fake images, positive values for real images
@@ -436,7 +437,9 @@ def generate_heightmap(model=generator, input_noise=tf.random.normal([1, noise_d
 
 	plt.figure(figsize=(10, 10)) # set image dimensions in inches
 
-	#test = generated_heightmap[0, :, :, 0]
+
+	#test = generated_heightmap[0, i, j, 0]
+	#print(test)
 	#plt.imsave(filename, test, cmap='gray', vmin=0, vmax=1)  #nonetype error?
 	plt.imshow(generated_heightmap[0, :, :, 0], cmap='gray', interpolation='none',               resample=False)  #
 	plt.show()
@@ -479,6 +482,15 @@ def generate_heightmap(model=generator, input_noise=tf.random.normal([1, noise_d
 #
 
 def train_from_files(epochs=200):
+
+	print('\n\tInput T to train... \n or E or G...')
+	user_input = input()
+
+	while user_input == 'g' or user_input == 'G':
+		tf.random.set_seed(int(time.time()))
+		generate_heightmap(model=generator)
+		user_input = input()
+
 	#print(hgt_filenames)
 	#heightmap_tensors = [OpenAndReadHeightmap(name) for name in hgt_filenames]
 	f_names = ['Heightmaps/dem_tif_n60w180/n60w155_dem.tif', 'Heightmaps/dem_tif_n60w180/n60w160_dem.tif', 'Heightmaps/dem_tif_n60w180/n65w180_dem.tif']
@@ -486,8 +498,7 @@ def train_from_files(epochs=200):
 	heightmap_tensors = [OpenAndReadHeightmap(name) for name in f_names]
 	train_dataset = tf.data.Dataset.from_tensor_slices(heightmap_tensors)
 
-	print('\n\tInput T to train... \n or E or G...')
-	user_input = input()
+
 	if user_input == 't' or user_input == 'T':
 		train(train_dataset, epochs)
 	elif user_input == 'e' or user_input == 'E':
@@ -495,8 +506,5 @@ def train_from_files(epochs=200):
 		#epochs = int(input())
 		train(train_dataset, int(input()))
 
-	while user_input == 'g' or user_input == 'G':
-		generate_heightmap(model=generator)
-		user_input = input()
 ##
 ##

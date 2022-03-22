@@ -128,8 +128,14 @@ def OpenAndReadHeightmap(filename, preview_data=False):
 
     return rank_3_tensor
 
-no_saved_dataset = True ###
-def TrainFromInput(EPOCHS=100, viewInputs=False):
+dataset_path = 'Dataset/mydataset_15-03-22'
+no_saved_dataset = True ###False ###
+
+def TrainFromInput(EPOCHS=1, viewInputs=False):
+
+    print('\n\tInput T to train; E to set the number of epochs; C to load a checkpoint ...')
+    user_input = input('  -->')
+
     print('loading dataset from files...')
     if no_saved_dataset:
         heightmap_tensors = [OpenAndReadHeightmap(name, preview_data=viewInputs) for name in GetFilenames('Heightmaps/all_hgts/')] #dem_n30e000/')] #
@@ -143,8 +149,9 @@ def TrainFromInput(EPOCHS=100, viewInputs=False):
         train_dataset = gan.tf.data.Dataset.from_tensor_slices(hmt)
         train_dataset = train_dataset.shuffle(gan.BUFFER_SIZE, reshuffle_each_iteration=True).batch(gan.BATCH_SIZE).prefetch(4).cache()
 
-        writer = gan.tf.data.experimental.TFRecordWriter('mydataset_15-03-22.tfrecord')  # save the dataset to a file
-        writer.write(train_dataset)
+
+        #gan.tf.data.experimental.save(train_dataset, dataset_path)  # save the dataset to a file
+
 
         print('\n                                --------------\n'
               'total size of training dataset: ', hmt.shape ,'images\n' #
@@ -152,13 +159,10 @@ def TrainFromInput(EPOCHS=100, viewInputs=False):
               '                ~           of: ', gan.BATCH_SIZE,'images\n'
               '                                --------------')
     else:
-        print('loaded tensorflow dataset -   mydataset_15-03-22.tfrecord')
+        print('loaded tensorflow dataset - ', dataset_path)
         # load saved dataset
-        train_dataset = gan.tf.data.TFRecordDataset('mydataset_15-03-22.tfrecord')
+        train_dataset = gan.tf.data.TFRecordDataset(dataset_path)
 
-
-    print('\n\tInput T to train; E to set the number of epochs; C to load a checkpoint ...')
-    user_input = input('  -->')
     if user_input == 't' or user_input == 'T':
         gan.train(train_dataset, EPOCHS)
     elif user_input == 'e' or user_input == 'E':

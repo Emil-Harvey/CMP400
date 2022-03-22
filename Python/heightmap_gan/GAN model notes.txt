@@ -1,4 +1,4 @@
-
+Training for 82 Epochs took 14783.404401063919 sec
 gpu - 1 epoch: 183 seconds
 cpu - 1 epoch: 2543 seconds
 
