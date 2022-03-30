@@ -128,12 +128,12 @@ def OpenAndReadHeightmap(filename, preview_data=False):
 
     return rank_3_tensor
 
-dataset_path = 'Dataset/mydataset_15-03-22'
+dataset_path = 'D:/LocalWorkDir/1800480/training_dataset'
 no_saved_dataset = True ###False ###
 
 def TrainFromInput(EPOCHS=1, viewInputs=False):
 
-    print('\n\tInput T to train; E to set the number of epochs; C to load a checkpoint ...')
+    print('\n\tInput T to train ('+str(EPOCHS)+'); E to set the number of epochs; C to load a checkpoint ...')
     user_input = input('  -->')
 
     print('loading dataset from files...')

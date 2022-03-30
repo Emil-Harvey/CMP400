@@ -6,6 +6,7 @@ from tensorflow.keras import mixed_precision
 from tensorflow.python.ops.distributions.kullback_leibler import cross_entropy
 import time
 import matplotlib.pyplot as plt
+from PIL import Image
 
 INPUT_DATA_RES = 256 #120
 I2_DATA_RES = int(INPUT_DATA_RES / 2) #120 #128
@@ -281,8 +282,8 @@ discriminator_optimizer = tf.keras.optimizers.Adam(1e-4)
 #
 # to save and restore models, which can be helpful in case a long running training task is interrupted.
 #
-checkpoint_dir = os.path.normpath('D:/1800480_test_checkpoints') #'./training_checkpoints')#
-checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt_v09")
+checkpoint_dir = os.path.normpath('D:/LocalWorkDir/1800480/training_checkpoints') #'./training_checkpoints')#
+checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt_v09.6")
 checkpoint = tf.train.Checkpoint(generator_optimizer=generator_optimizer,
 								 discriminator_optimizer=discriminator_optimizer,
 								 generator=generator,
@@ -292,7 +293,7 @@ manager = tf.train.CheckpointManager(checkpoint, checkpoint_prefix, max_to_keep=
 
 # Define the training loop
 BUFFER_SIZE = 4000
-BATCH_SIZE = 8
+BATCH_SIZE = 1
 EPOCHS = 1#200
 noise_dim = 100 # size of input noise
 num_examples_to_generate = 16 # when previewing the 'results' after training; with pyplot
@@ -413,7 +414,7 @@ def generate_and_save_images(model, epoch, test_input):
 		plt.imshow(predictions[i, :, :, 0], cmap='gray', interpolation='none', resample=False) # * 127.5 + 127.5
 		plt.axis('off')
 
-	plt.savefig('image_at_epoch_{:04d} (v09).png'.format(epoch))
+	plt.savefig('image_at_epoch_{:04d} (v09.6).png'.format(epoch))
 
 
 #plt.show()
@@ -435,16 +436,20 @@ def generate_heightmap(model=generator, input_noise=tf.random.normal([1, noise_d
 	decision = discriminator(generated_heightmap)  # negative values for fake images, positive values for real images
 	print ('\t\tthe discriminator gives this a score of:', decision[0,0])
 
-	plt.figure(figsize=(10, 10)) # set image dimensions in inches
+
+	output = Image.fromarray(generated_heightmap[0, :, :, 0].astype(tf.uint32))
+
+
+	#plt.figure(figsize=(10, 10)) # set image dimensions in inches
 
 
 	#test = generated_heightmap[0, i, j, 0]
 	#print(test)
 	#plt.imsave(filename, test, cmap='gray', vmin=0, vmax=1)  #nonetype error?
-	plt.imshow(generated_heightmap[0, :, :, 0], cmap='gray', interpolation='none',               resample=False)  #
-	plt.show()
-	plt.imshow(generated_heightmap[0, :, :, 0], cmap='gray', interpolation='none',vmin=0, vmax=1, resample=False) #
-	plt.axis('off')		# remove axes
+	#plt.imshow(generated_heightmap[0, :, :, 0], cmap='gray', interpolation='none',               resample=False)  #
+	#plt.show()
+	#plt.imshow(generated_heightmap[0, :, :, 0], cmap='gray', interpolation='none',vmin=0, vmax=1, resample=False) #
+	#plt.axis('off')		# remove axes
 
 	#fig.set_size_inches(18.5, 10.5)
 	if save:
@@ -452,7 +457,8 @@ def generate_heightmap(model=generator, input_noise=tf.random.normal([1, noise_d
 			# save the array as a PNG image using PyPlot:	[remove white border around image]
 			name = 'heightmap_{}.png'.format(int(input_noise[0, 0] * 1000))
 			#name = 'heightmap_x.png'
-			plt.savefig(name, bbox_inches='tight', pad_inches = 0, dpi = INPUT_DATA_RES)
+			#plt.savefig(name, bbox_inches='tight', pad_inches = 0, dpi = INPUT_DATA_RES)
+			output.save(name)
 			print('> Saved as', name)
 
 			'''#save the array as a .float (texture) file format
@@ -463,7 +469,7 @@ def generate_heightmap(model=generator, input_noise=tf.random.normal([1, noise_d
 			exported_file.close()
 			#'''
 		else:
-			plt.savefig(filename, bbox_inches='tight',pad_inches = 0, dpi=INPUT_DATA_RES)
+			output.save(filename)#plt.savefig(filename, bbox_inches='tight',pad_inches = 0, dpi=INPUT_DATA_RES)
 			print('Saved.')
 
 	plt.show()
@@ -476,7 +482,7 @@ def generate_heightmap(model=generator, input_noise=tf.random.normal([1, noise_d
 
 # Train the model
 # Call the train() method defined above to train the generator and
-# discriminator simultaneously. Note, training GANs can be tricky.
+# discriminator simultaneously.
 # It's important that the generator and discriminator do not overpower
 # each other (e.g. that they train at a similar rate).
 #
@@ -491,7 +497,7 @@ def train_from_files(epochs=200):
 		generate_heightmap(model=generator)
 		user_input = input()
 
-	#print(hgt_filenames)
+	'''#print(hgt_filenames)
 	#heightmap_tensors = [OpenAndReadHeightmap(name) for name in hgt_filenames]
 	f_names = ['Heightmaps/dem_tif_n60w180/n60w155_dem.tif', 'Heightmaps/dem_tif_n60w180/n60w160_dem.tif', 'Heightmaps/dem_tif_n60w180/n65w180_dem.tif']
 
@@ -504,7 +510,7 @@ def train_from_files(epochs=200):
 	elif user_input == 'e' or user_input == 'E':
 		print('\n\tInput the number of EPOCHS to train.')
 		#epochs = int(input())
-		train(train_dataset, int(input()))
+		train(train_dataset, int(input()))'''
 
 ##
 ##
