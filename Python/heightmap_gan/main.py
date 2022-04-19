@@ -96,13 +96,17 @@ def OpenAndReadHeightmap(filename, preview_data=False):
 
     rank_3_tensor = gan.tf.convert_to_tensor(array3D)
 
-    max_altitude = 8850.0  # normalise height values to be between 0 and 1:
+    max_altitude = 8850.0  # normalise height values to be between 0 and 1. use sqrt to create a larger deviation between common (low) heights (avoid negatives/NaN):
+    rank_3_tensor = gan.tf.cast(gan.tf.sqrt(gan.tf.maximum(gan.tf.cast(rank_3_tensor, gan.tf.float32) / max_altitude, 1e-9)), gan.tf.float32)
+    #for row in rank_3_tensor:
+    #    for column in row:
 
-    rank_3_tensor = gan.tf.cast((gan.tf.cast(rank_3_tensor, gan.tf.float32) / max_altitude), gan.tf.float32)
+
+
 
     if preview_data:
         print(rank_3_tensor.shape)
-        gan.plt.imsave('imshow_test.png', rank_3_tensor[0, :, :], cmap='gray', vmin=0, vmax=1)  # nonetype error?
+        #gan.plt.imsave('imshow_test.png', rank_3_tensor[0, :, :], cmap='gray', vmin=0, vmax=1)  # nonetype error?
 
         gan.plt.imshow(rank_3_tensor[0, :, :], cmap="inferno")  #terrain")  #viridis") #
         gan.plt.show()
@@ -131,7 +135,7 @@ def OpenAndReadHeightmap(filename, preview_data=False):
 dataset_path = 'D:/LocalWorkDir/1800480/training_dataset'
 no_saved_dataset = True ###False ###
 
-def TrainFromInput(EPOCHS=1, viewInputs=False):
+def TrainFromInput(EPOCHS=gan.EPOCHS, viewInputs=False):
 
     print('\n\tInput T to train ('+str(EPOCHS)+'); E to set the number of epochs; C to load a checkpoint ...')
     user_input = input('  -->')
@@ -139,6 +143,8 @@ def TrainFromInput(EPOCHS=1, viewInputs=False):
     print('loading dataset from files...')
     if no_saved_dataset:
         heightmap_tensors = [OpenAndReadHeightmap(name, preview_data=viewInputs) for name in GetFilenames('Heightmaps/all_hgts/')] #dem_n30e000/')] #
+        #f_names = ['Heightmaps/all_hgts/G46/N27E090.hgt','Heightmaps/all_hgts/G46/N24E091.hgt']
+        #heightmap_tensors = [OpenAndReadHeightmap(name,preview_data=True) for name in f_names]
         data_size = len(heightmap_tensors) * len(heightmap_tensors[0])
 
         hmt = gan.tf.convert_to_tensor(heightmap_tensors)

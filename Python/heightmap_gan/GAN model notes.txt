@@ -2,6 +2,10 @@ Training for 82 Epochs took 14783.404401063919 sec
 gpu - 1 epoch: 183 seconds
 cpu - 1 epoch: 2543 seconds
 
+
+batch size 1: (v09.6)
+31 epochs took 3.7796 hours
+
 the models used by Christopher Beckham & Christopher Pal:
 
 https://github.com/christopher-beckham/gan-heightmaps
