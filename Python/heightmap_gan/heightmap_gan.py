@@ -420,7 +420,7 @@ def generate_and_save_images(model, epoch, test_input):
 
 
 # using the GAN's trained generator, create a heightmap and export/save to a readable file.
-def generate_heightmap(model=generator, input_noise=tf.random.normal([1, noise_dim]), save=False, filename=None):
+def generate_heightmap(model=generator, input_noise=tf.random.normal([1, noise_dim])):
 	print('Generating...')
 	# restore from latest checkpoint if possible
 	checkpoint.restore(manager.latest_checkpoint)
@@ -438,24 +438,31 @@ def generate_heightmap(model=generator, input_noise=tf.random.normal([1, noise_d
 
 	# tf.compat.v1.disable_eager_execution()
 	# output_hm = tf.cast(generated_heightmap[0, :, :, 0], tf.float32)
-	output_list = list(generated_heightmap[0, :, :, 0])  # .astype(tf.uint32)
-	import numpy
 
-	output_array = (numpy.array( [[height * 65535 for height in row] for row in output_list])).astype(numpy.uint32)
-	#output_array = numpy.array(ggg2).astype(numpy.uint32)
-	output = Image.fromarray(output_array, 'I')
 
-	plt.figure(figsize=(10, 10))  # set image dimensions in inches
+	#plt.figure(figsize=(10, 10))  # set image dimensions in inches
 
-	# print(test)
+
 	# plt.imsave(filename, test, cmap='gray', vmin=0, vmax=1)  #nonetype error?
 	plt.imshow(generated_heightmap[0, :, :, 0], cmap='gray', interpolation='none', resample=False)  #
 	plt.show()
 	# plt.imshow(generated_heightmap[0, :, :, 0], cmap='gray', interpolation='none',vmin=0, vmax=1, resample=False) #
-	plt.axis('off')  # remove axes
+	#plt.axis('off')  # remove axes
 
-	# fig.set_size_inches(18.5, 10.5)
+	user_input = input('Would you like to save the image? [y/n] ')
+	save = (user_input == 'y' or user_input == 'Y')
+	
 	if save:
+		filename = None
+		user_input = input('Please enter a file name, including .png at the end: ')
+		if user_input[-4:] == '.png':
+			filename = user_input
+
+		output_list = list(generated_heightmap[0, :, :, 0])  # .astype(tf.uint32)
+		import numpy
+		output_array = (numpy.array([[height * 65535 for height in row] for row in output_list])).astype(numpy.uint32)
+		output = Image.fromarray(output_array, 'I')
+
 		if filename is None:
 			# save the array as a PNG image using PyPlot:	[remove white border around image]
 			name = 'heightmap_{}.png'.format(int(input_noise[0, 0] * 1000))

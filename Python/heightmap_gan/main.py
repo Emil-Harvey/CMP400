@@ -201,16 +201,8 @@ def Main():
         elif user_input == 'tv' or user_input == 'TV':
             TrainFromInput(viewInputs=True)
         elif user_input == 'g' or user_input == 'G':
-            user_input = input('Would you like to save the image? [y/n] ')
-            Save = (user_input == 'y' or user_input == 'Y')
-            if Save:
-                user_input = input('Please enter a file name, including .png at the end: ')
-                if user_input[-4:] == '.png':
-                    gan.generate_heightmap(save=Save, filename=user_input)
-                else:
-                    gan.generate_heightmap(save=Save)
-            else:
-                gan.generate_heightmap()
+            gan.tf.random.set_seed(int(gan.time.time()))
+            gan.generate_heightmap(input_noise=gan.tf.random.normal([1, gan.noise_dim]))
         elif user_input == 'o' or user_input == 'O':
             gan.train_from_files()
         elif user_input == 'q':
