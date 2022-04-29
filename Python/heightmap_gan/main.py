@@ -19,9 +19,9 @@ def GetFilenames(directory = 'Heightmaps/'):
 
     return filenames
 
-def OpenAndReadHeightmap(filename, preview_data=False):
-    if preview_data:
-        print("Loading Heightmap...")#, filename) #
+def OpenAndReadHeightmap(filename, preview_data=False, analysing_data=False):
+    if preview_data or analysing_data:
+        print("Loading Heightmap", filename) #
 
     # if file is a .hgt:
     if filename.endswith('.hgt'):
@@ -42,12 +42,11 @@ def OpenAndReadHeightmap(filename, preview_data=False):
         print('UNKNOWN FILE FORMAT. Sorry')
         return
 
-    #print('here')
-    from math import sqrt
+    from numpy import sqrt
 
     if len(data) == 1201 * 1201:
         input_resolution = int(sqrt(len(data)))
-        nearest_slicable_resolution = gan.INPUT_DATA_RES * int(sqrt(len(data))/gan.INPUT_DATA_RES)
+        nearest_slicable_resolution = gan.INPUT_DATA_RES * int(input_resolution/gan.INPUT_DATA_RES)
         nsr = nearest_slicable_resolution
         #reduce the array to NSRxNSR - delete the extra rows/columns.
         amount_to_crop = input_resolution - nsr
@@ -96,17 +95,20 @@ def OpenAndReadHeightmap(filename, preview_data=False):
 
     rank_3_tensor = gan.tf.convert_to_tensor(array3D)
 
-    max_altitude = 8850.0  # normalise height values to be between 0 and 1. use sqrt to create a larger deviation between common (low) heights (avoid negatives/NaN):
-    rank_3_tensor = gan.tf.cast(gan.tf.sqrt(gan.tf.maximum(gan.tf.cast(rank_3_tensor, gan.tf.float32) / max_altitude, 1e-9)), gan.tf.float32)
-    #for row in rank_3_tensor:
-    #    for column in row:
+    max_altitude = 8850.0  # normalise height values to be between 0 [0.000000001] and 1. use sqrt to create a larger deviation between common (low) heights (avoid negatives/NaN):
+    if analysing_data: ## create a histogram by grouping all elevation values into 100 groups, rounded down
+        histogram_tensor = gan.tf.cast(gan.tf.maximum(gan.tf.cast(rank_3_tensor, gan.tf.float32) / max_altitude, 1e-9) * 100, gan.tf.int32)
+        histogram_tensor = gan.tf.reshape(histogram_tensor, [256*256*16])
+        ##histogram = gan.tf.histogram_fixed_width(rank_3_tensor,[0,100],100,gan.tf.int32)
+        return histogram_tensor#histogram
 
+    rank_3_tensor = gan.tf.cast(gan.tf.sqrt(gan.tf.maximum(gan.tf.cast(rank_3_tensor, gan.tf.float32) / max_altitude, 1e-9)), gan.tf.float32)
 
 
 
     if preview_data:
         print(rank_3_tensor.shape)
-        #gan.plt.imsave('imshow_test.png', rank_3_tensor[0, :, :], cmap='gray', vmin=0, vmax=1)  # nonetype error?
+
 
         gan.plt.imshow(rank_3_tensor[0, :, :], cmap="inferno")  #terrain")  #viridis") #
         gan.plt.show()
@@ -116,7 +118,7 @@ def OpenAndReadHeightmap(filename, preview_data=False):
                        resample=False)  # vmin=0, vmax=1,
         gan.plt.axis('off')  # remove axes
         gan.plt.show()'''
-    #print(rank_3_tensor.shape)
+
 
     '''# print the tensor row by row
         print('\n------\n'.join(['\n'.join([''.join(['{:5}'.format(item)
@@ -132,10 +134,30 @@ def OpenAndReadHeightmap(filename, preview_data=False):
 
     return rank_3_tensor
 
+
+def analyse_dataset():
+    histogram_list = [0 for _ in range(100)]
+    count = 0
+    for name in GetFilenames('Heightmaps/all_hgts/'):
+        #bucket_array = OpenAndReadHeightmap(name, analysing_data=True)
+        #for bucket in range(100):
+        #    histogram_list[bucket] += gan.tf.reduce_sum(gan.tf.cast(gan.tf.equal(bucket_array, bucket), gan.tf.int32)).numpy() #bucket_array.count(bucket)
+        #print('100:',histogram_tensors[99])
+        count += 1
+
+    print(count, 'total source DEM files')
+    count = count * 256 * 256 * 16
+    print('count:', count)
+    print(histogram_list)
+    print('normalised:')
+    histogram_percentage = [100* bucket/count for bucket in histogram_list]
+    print(histogram_percentage)
+
+
 dataset_path = 'D:/LocalWorkDir/1800480/training_dataset'
 no_saved_dataset = True ###False ###
 
-def TrainFromInput(EPOCHS=gan.EPOCHS, viewInputs=False):
+def train_from_input(EPOCHS=gan.EPOCHS, viewInputs=False):
 
     print('\n\tInput T to train ('+str(EPOCHS)+'); E to set the number of epochs; C to load a checkpoint ...')
     user_input = input('  -->')
@@ -191,18 +213,21 @@ def Main():
               '\nPlease enter a command (key) -'
               '\n\tG: Generate A Heightmap'
               '\n\tT: Train from Dataset'
+              '\n\tA: Analyse Dataset'
               '\n\tO: Other'
               '\n\tQ: Quit'
               '\n\t...')
         user_input = input('\n\t--> ')
 
         if user_input == 't' or user_input == 'T':
-            TrainFromInput()
+            train_from_input()
         elif user_input == 'tv' or user_input == 'TV':
-            TrainFromInput(viewInputs=True)
+            train_from_input(viewInputs=True)
         elif user_input == 'g' or user_input == 'G':
             gan.tf.random.set_seed(int(gan.time.time()))
             gan.generate_heightmap(input_noise=gan.tf.random.normal([1, gan.noise_dim]))
+        elif user_input == 'a' or user_input == 'A':
+            analyse_dataset()
         elif user_input == 'o' or user_input == 'O':
             gan.train_from_files()
         elif user_input == 'q':

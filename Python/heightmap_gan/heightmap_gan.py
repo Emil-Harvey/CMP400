@@ -436,14 +436,6 @@ def generate_heightmap(model=generator, input_noise=tf.random.normal([1, noise_d
 	decision = discriminator(generated_heightmap)  # negative values for fake images, positive values for real images
 	print('\t\tthe discriminator gives this a score of:', decision[0, 0])
 
-	# tf.compat.v1.disable_eager_execution()
-	# output_hm = tf.cast(generated_heightmap[0, :, :, 0], tf.float32)
-
-
-	#plt.figure(figsize=(10, 10))  # set image dimensions in inches
-
-
-	# plt.imsave(filename, test, cmap='gray', vmin=0, vmax=1)  #nonetype error?
 	plt.imshow(generated_heightmap[0, :, :, 0], cmap='gray', interpolation='none', resample=False)  #
 	plt.show()
 	# plt.imshow(generated_heightmap[0, :, :, 0], cmap='gray', interpolation='none',vmin=0, vmax=1, resample=False) #
@@ -457,30 +449,21 @@ def generate_heightmap(model=generator, input_noise=tf.random.normal([1, noise_d
 		user_input = input('Please enter a file name, including .png at the end: ')
 		if user_input[-4:] == '.png':
 			filename = user_input
+		normalise = input('Normalise values? [y/n]: ') == 'y'
 
-		output_list = list(generated_heightmap[0, :, :, 0])  # .astype(tf.uint32)
 		import numpy
-		output_array = (numpy.array([[height * 65535 for height in row] for row in output_list])).astype(numpy.uint32)
+		output_list = numpy.array(list(generated_heightmap[0, :, :, 0]))  # .astype(tf.uint32)
+		# normalise values in array (stretch to 0 and 1) if chosen. then multiply all values to fit range (2^16)
+		output_array = (numpy.multiply((output_list - output_list.min())/ (output_list.max() - output_list.min()) if normalise else output_list, 65535)).astype(numpy.uint32)
 		output = Image.fromarray(output_array, 'I')
 
 		if filename is None:
-			# save the array as a PNG image using PyPlot:	[remove white border around image]
+			# save the array as a PNG image using PIL
 			name = 'heightmap_{}.png'.format(int(input_noise[0, 0] * 1000))
-
-			# plt.savefig(name, bbox_inches='tight', pad_inches = 0, dpi = INPUT_DATA_RES)
-			# using PIL
 			output.save(name)
 			print('> Saved as', name)
-
-			'''#save the array as a .float (texture) file format
-			name = 'heightmap_{}.float'.format(int(input_noise[0, 0] * 1000))
-			print(name)
-			exported_file = open(name, mode='wb')  #  create new/overwrite file
-			generated_heightmap[0, :, :, 0].numpy().tofile(exported_file)
-			exported_file.close()
-			#'''
 		else:
-			output.save(filename)  # plt.savefig(filename, bbox_inches='tight',pad_inches = 0, dpi=INPUT_DATA_RES)
+			output.save(filename)
 			print('Saved.')
 
 	# plt.show()
