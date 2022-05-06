@@ -45,11 +45,11 @@ def OpenAndReadHeightmap(filename, preview_data=False, analysing_data=False):
     from numpy import sqrt
 
     if len(data) == 1201 * 1201:
-        input_resolution = int(sqrt(len(data)))
+        input_resolution = int(sqrt(len(data))) # i.e. 1201
         nearest_slicable_resolution = gan.INPUT_DATA_RES * int(input_resolution/gan.INPUT_DATA_RES)
-        nsr = nearest_slicable_resolution
+        nsr = nearest_slicable_resolution # i.e. 1024
         #reduce the array to NSRxNSR - delete the extra rows/columns.
-        amount_to_crop = input_resolution - nsr
+        amount_to_crop = input_resolution - nsr # i.e. 177
 
         #'''
         del data[nsr * input_resolution:]
@@ -76,14 +76,15 @@ def OpenAndReadHeightmap(filename, preview_data=False, analysing_data=False):
         print('showing preview:')
         gan.plt.imshow(rank_2_tensor[:, :], cmap="terrain")  #viridis") #inferno") #
         gan.plt.show()
+        #return 0
 
 
 
     # slice into [a hundred][or 2500] 120 by 120 sub-images
     sub_image_res = gan.INPUT_DATA_RES#300#120
     number_of_sub_images = int((len(rank_2_tensor[0]) / sub_image_res) ** 2)
-    if preview_data: print('The data will be sliced into ', number_of_sub_images, ' sub-images of size ', sub_image_res, 'x',
-                           sub_image_res, '.')
+    if preview_data: print('The data will be sliced into ', number_of_sub_images, ' sub-images of size ',
+                           sub_image_res, 'x', sub_image_res, '.')
     array3D = [[[0 for k in range(sub_image_res)] for j in range(sub_image_res)] for i in range(number_of_sub_images)]
 
     rows_columns = int(sqrt(number_of_sub_images))
