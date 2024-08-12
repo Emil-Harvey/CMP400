@@ -13,3 +13,5 @@ areas:
 		Western Bangladesh & The Maldives 
  -  n30w090:	Eastern North America; spanning New Orleans,
 		The Hudson Bay, Newfoundland, Bermuda
+
+To do: try normalizing training data per-image rather than dividing by 8850.
